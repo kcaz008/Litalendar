@@ -123,8 +123,73 @@ body {
   color: #5b8def;
 }
 
+/* Week view: compact — fit 5am–11pm on screen without scrolling */
+.fc-echo-timeGridWeek .fc-timegrid-slot,
+.fc-echo-calendar .fc-timeGridWeek-view .fc-timegrid-slot {
+  height: auto !important;
+  min-height: 0;
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.fc-echo-timeGridWeek .fc-timegrid-slot-label,
+.fc-echo-calendar .fc-timeGridWeek-view .fc-timegrid-slot-label {
+  font-size: 0.75rem;
+  color: #64748b;
+  vertical-align: top;
+  padding-top: 2px;
+}
+
+.fc-echo-timeGridWeek .fc-timegrid-slot-label-cushion,
+.fc-echo-calendar .fc-timeGridWeek-view .fc-timegrid-slot-label-cushion {
+  padding: 0 8px;
+}
+
+.fc-echo-timeGridWeek .fc-event,
+.fc-echo-calendar .fc-timeGridWeek-view .fc-event {
+  border-radius: 6px;
+  padding: 1px 4px;
+  font-size: 0.75rem;
+  min-height: 1.1rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.fc-echo-timeGridWeek .fc-event .fc-event-time,
+.fc-echo-calendar .fc-timeGridWeek-view .fc-event .fc-event-time {
+  font-size: 0.65rem;
+}
+
+.fc-echo-timeGridWeek .fc-event .fc-event-title,
+.fc-echo-calendar .fc-timeGridWeek-view .fc-event .fc-event-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.fc-echo-timeGridWeek .fc-col-header-cell,
+.fc-echo-calendar .fc-timeGridWeek-view .fc-col-header-cell {
+  padding: 8px 0;
+}
+
+.fc-echo-timeGridWeek .fc-col-header-cell-cushion,
+.fc-echo-calendar .fc-timeGridWeek-view .fc-col-header-cell-cushion {
+  font-size: 0.8rem;
+  padding: 4px 2px;
+}
+
+/* Day view: larger slots for touch editing */
+.fc-echo-timeGridDay .fc-timegrid-slot,
+.fc-echo-calendar .fc-timeGridDay-view .fc-timegrid-slot {
+  height: 3rem;
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.fc-echo-timeGridDay .fc-event,
+.fc-echo-calendar .fc-timeGridDay-view .fc-event {
+  font-size: 0.95rem;
+  min-height: 2rem;
+}
+
+/* Fallback for any timegrid without view class */
 .fc-echo-calendar .fc-timegrid-slot {
-  height: 3.5rem;
   border-color: rgba(255, 255, 255, 0.05);
 }
 

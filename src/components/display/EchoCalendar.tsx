@@ -58,7 +58,7 @@ export function EchoCalendar({
   );
 
   return (
-    <div className="fc-echo-calendar h-full min-h-0 flex-1">
+    <div className={`fc-echo-calendar fc-echo-${currentView} h-full min-h-0 flex-1`}>
       <FullCalendar
         ref={internalRef}
         plugins={[timeGridPlugin, dayGridPlugin, listPlugin, interactionPlugin]}
@@ -66,15 +66,37 @@ export function EchoCalendar({
         headerToolbar={false}
         events={toFullCalendarEvents(events)}
         height="100%"
-        expandRows
-        slotMinTime="06:00:00"
-        slotMaxTime="22:00:00"
         allDaySlot={false}
         nowIndicator
-        scrollTime={getScrollTime()}
+        scrollTime={getScrollTime(currentView)}
         scrollTimeReset={false}
-        slotDuration="00:30:00"
-        slotLabelInterval="01:00:00"
+        firstDay={1}
+        weekends
+        editable
+        eventStartEditable
+        eventDurationEditable
+        eventResizableFromStart
+        snapDuration="00:15:00"
+        views={{
+          timeGridWeek: {
+            type: "timeGrid",
+            duration: { weeks: 1 },
+            slotMinTime: "05:00:00",
+            slotMaxTime: "23:00:00",
+            slotDuration: "01:00:00",
+            slotLabelInterval: "01:00:00",
+            expandRows: true,
+          },
+          timeGridDay: {
+            type: "timeGrid",
+            duration: { days: 1 },
+            slotMinTime: "06:00:00",
+            slotMaxTime: "22:00:00",
+            slotDuration: "00:30:00",
+            slotLabelInterval: "01:00:00",
+            expandRows: true,
+          },
+        }}
         slotLabelFormat={{
           hour: "numeric",
           minute: "2-digit",
@@ -90,13 +112,6 @@ export function EchoCalendar({
           minute: "2-digit",
           hour12: true,
         }}
-        firstDay={1}
-        weekends
-        editable
-        eventStartEditable
-        eventDurationEditable
-        eventResizableFromStart
-        snapDuration="00:15:00"
         datesSet={handleDatesSet}
         eventClick={onEventClick}
         eventDrop={onEventDrop}
@@ -109,8 +124,13 @@ export function EchoCalendar({
   );
 }
 
-function getScrollTime(): string {
+function getScrollTime(view: CalendarViewType): string {
   const now = new Date();
-  const hour = Math.max(6, now.getHours() - 1);
-  return `${String(hour).padStart(2, "0")}:00:00`;
+  const hour = now.getHours();
+  if (view === "timeGridWeek") {
+    // Week overview: start at top so the full day is visible
+    return "05:00:00";
+  }
+  const scrollHour = Math.max(6, hour - 1);
+  return `${String(scrollHour).padStart(2, "0")}:00:00`;
 }
