@@ -2,9 +2,24 @@
 
 A touch-first family calendar dashboard for Echo Show 15.
 
-## Phase 1 — Display UI (current)
+## Phase 2 — Touch editing (current)
 
-Beautiful `/display/[displayId]` route with mock family calendar data. No backend, OAuth, or database yet.
+Full touch editing with local React state and mock data. No backend yet.
+
+### Touch interactions
+- **Tap event** → large details modal (Edit / Delete / Close)
+- **Add Event** → multi-step touch form with presets
+- **Quick-add chips** → open Add Event with prefilled calendar/title/time
+- **Drag event** → confirmation modal before saving move
+- **Resize event** → confirmation modal before saving duration change
+- **Edit form** → duration quick buttons (−15 / +15 / +30 / +1 hour)
+- **Delete** → confirmation required
+- **Undo toast** → 10-second undo after create/edit/move/resize/delete
+- **Conflict warning** → overlap detection on same calendar
+
+## Phase 1 — Display UI
+
+Beautiful `/display/[displayId]` route with mock family calendar data.
 
 ### Quick start
 
@@ -35,7 +50,6 @@ Open [http://localhost:3000/display/kitchen](http://localhost:3000/display/kitch
 
 ### Coming in later phases
 
-- Phase 2: Touch editing (tap, drag, add, edit, delete, undo)
 - Phase 3: Setup/settings + database
 - Phase 4: Google OAuth + calendar fetching
 - Phase 5: Real Google Calendar CRUD
