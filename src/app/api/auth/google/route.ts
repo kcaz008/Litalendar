@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { cookies } from "next/headers";
 import { buildGoogleAuthUrl, isGoogleConfigured } from "@/lib/google/oauth";
+import { getSession } from "@/lib/auth/session";
+import { prisma, isDatabaseConfigured } from "@/lib/db/prisma";
 
 const STATE_COOKIE = "google_oauth_state";
 
@@ -12,6 +14,17 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const returnTo = searchParams.get("returnTo") || "/setup";
+  const reconnect = searchParams.get("reconnect") === "1";
+
+  // Force fresh consent: clear stored tokens so Google grants updated scopes
+  if (reconnect && isDatabaseConfigured()) {
+    const session = await getSession();
+    if (session) {
+      await prisma.googleConnection.deleteMany({
+        where: { userId: session.userId },
+      });
+    }
+  }
 
   const state = randomBytes(16).toString("base64url");
   const cookieStore = await cookies();

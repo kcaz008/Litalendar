@@ -32,7 +32,7 @@ Copy `.env.example` to `.env.local` and fill in:
 2. Enable **Google Calendar API**
 3. Create **OAuth 2.0 Web** credentials
 4. Authorized redirect URI: `{APP_URL}/api/auth/google/callback`
-5. OAuth scope used: `https://www.googleapis.com/auth/calendar.events`
+5. OAuth scope used: `calendar.readonly` + `calendar.events`
 
 ### Routes
 

@@ -28,6 +28,7 @@ export default function SetupPage() {
   const [calendars, setCalendars] = useState<CalendarSourceRow[]>([]);
   const [displays, setDisplays] = useState<DisplayRow[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [needsReconnect, setNeedsReconnect] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
@@ -74,10 +75,16 @@ export default function SetupPage() {
 
   const syncCalendars = async () => {
     setSyncing(true);
+    setError(null);
+    setNeedsReconnect(false);
     const res = await fetch("/api/calendars", { method: "POST" });
     if (res.ok) {
       const data = await res.json();
       setCalendars(data.sources ?? []);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? "Calendar sync failed");
+      setNeedsReconnect(Boolean(data.needsReconnect));
     }
     setSyncing(false);
   };
@@ -137,14 +144,31 @@ export default function SetupPage() {
           </Link>
         )}
         {user?.hasGoogle && (
-          <button
-            type="button"
-            onClick={syncCalendars}
-            disabled={syncing}
-            className="mt-4 rounded-xl border border-white/15 bg-white/10 px-6 py-3 font-medium disabled:opacity-50"
-          >
-            {syncing ? "Syncing..." : "Refresh calendar list"}
-          </button>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={syncCalendars}
+              disabled={syncing}
+              className="rounded-xl border border-white/15 bg-white/10 px-6 py-3 font-medium disabled:opacity-50"
+            >
+              {syncing ? "Syncing..." : "Refresh calendar list"}
+            </button>
+            <Link
+              href="/api/auth/google?reconnect=1&returnTo=/setup"
+              className="rounded-xl border border-white/15 px-6 py-3 font-medium text-white/70"
+            >
+              Reconnect Google
+            </Link>
+          </div>
+        )}
+        {needsReconnect && (
+          <p className="mt-3 text-sm text-amber-200">
+            Calendar permissions need updating.{" "}
+            <Link href="/api/auth/google?reconnect=1&returnTo=/setup" className="underline">
+              Reconnect Google
+            </Link>{" "}
+            and approve calendar access.
+          </p>
         )}
       </section>
 
