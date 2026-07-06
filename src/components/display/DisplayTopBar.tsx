@@ -3,6 +3,7 @@
 import { LiveClock, LiveDate } from "@/components/display/LiveClock";
 import { ConnectionBadge } from "@/components/display/ConnectionBadge";
 import type { ConnectionStatus } from "@/types/calendar";
+import { formatZonedTime } from "@/lib/datetime/timezone";
 
 export type CalendarViewType = "timeGridWeek" | "timeGridDay" | "dayGridMonth" | "listWeek";
 
@@ -10,6 +11,7 @@ interface DisplayTopBarProps {
   title: string;
   connectionStatus: ConnectionStatus;
   lastUpdated: Date;
+  usingCache: boolean;
   currentView: CalendarViewType;
   onViewChange: (view: CalendarViewType) => void;
   onToday: () => void;
@@ -25,7 +27,7 @@ const VIEW_TABS: { id: CalendarViewType; label: string }[] = [
 ];
 
 function formatLastUpdated(date: Date): string {
-  return date.toLocaleTimeString("en-US", {
+  return formatZonedTime(date, {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
@@ -36,6 +38,7 @@ export function DisplayTopBar({
   title,
   connectionStatus,
   lastUpdated,
+  usingCache,
   currentView,
   onViewChange,
   onToday,
@@ -60,7 +63,9 @@ export function DisplayTopBar({
 
         <div className="flex items-center gap-3">
           <div className="hidden flex-col items-end sm:flex">
-            <span className="text-xs text-white/40">Updated</span>
+            <span className="text-xs text-white/40">
+              {usingCache || connectionStatus === "cached" ? "Last updated" : "Updated"}
+            </span>
             <span className="text-sm font-medium text-white/60">
               {formatLastUpdated(lastUpdated)}
             </span>
