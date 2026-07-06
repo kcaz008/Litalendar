@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatZonedTime, getDateKeyInTimezone } from "@/lib/datetime/timezone";
 
 interface LiveClockProps {
   className?: string;
@@ -22,7 +23,7 @@ export function LiveClock({ className = "", showSeconds = true }: LiveClockProps
 
   return (
     <time dateTime={now.toISOString()} className={className}>
-      {now.toLocaleTimeString("en-US", {
+      {formatZonedTime(now, {
         hour: "numeric",
         minute: "2-digit",
         second: showSeconds ? "2-digit" : undefined,
@@ -46,8 +47,8 @@ export function LiveDate({ className = "" }: { className?: string }) {
   }
 
   return (
-    <time dateTime={now.toISOString().split("T")[0]} className={className}>
-      {now.toLocaleDateString("en-US", {
+    <time dateTime={getDateKeyInTimezone(now)} className={className}>
+      {formatZonedTime(now, {
         weekday: "long",
         month: "long",
         day: "numeric",

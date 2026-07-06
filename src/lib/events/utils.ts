@@ -1,4 +1,5 @@
 import type { FamilyEvent } from "@/types/calendar";
+import { DISPLAY_TIMEZONE, getDateKeyInTimezone } from "@/lib/datetime/timezone";
 
 let idCounter = 1000;
 
@@ -66,10 +67,12 @@ export function formatDateTimeLong(iso: string): string {
 }
 
 export function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-US", {
+  const date = iso.includes("T") ? new Date(iso) : new Date(`${iso}T12:00:00`);
+  return date.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
+    timeZone: DISPLAY_TIMEZONE,
   });
 }
 
@@ -164,7 +167,7 @@ export function formFromEvent(event: FamilyEvent) {
 }
 
 export function getTodayKey(): string {
-  return parseDateKey(new Date().toISOString());
+  return getDateKeyInTimezone(new Date(), DISPLAY_TIMEZONE);
 }
 
 export function getTomorrowKey(): string {

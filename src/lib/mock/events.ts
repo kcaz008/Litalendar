@@ -1,4 +1,12 @@
 import type { CalendarSource, FamilyEvent } from "@/types/calendar";
+import {
+  addZonedDays,
+  DISPLAY_TIMEZONE,
+  eventOverlapsZonedDay,
+  getZonedParts,
+  startOfZonedDay,
+  zonedDateTimeToUtc,
+} from "@/lib/datetime/timezone";
 
 export {
   formatTime,
@@ -44,44 +52,86 @@ export const MOCK_CALENDARS: CalendarSource[] = [
   },
 ];
 
-function startOfWeek(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
+function getMondayOfWeek(date = new Date(), timeZone = DISPLAY_TIMEZONE): Date {
+  const dayName = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    weekday: "short",
+  }).format(date);
+  const dayMap: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+  const dayOfWeek = dayMap[dayName] ?? 0;
+  const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  return startOfZonedDay(addZonedDays(date, diff, timeZone), timeZone);
 }
 
-function at(dayOffset: number, hour: number, minute = 0): string {
-  const weekStart = startOfWeek(new Date());
-  const d = new Date(weekStart);
-  d.setDate(d.getDate() + dayOffset);
-  d.setHours(hour, minute, 0, 0);
-  return d.toISOString();
+function atInTimezone(
+  weekStart: Date,
+  dayOffset: number,
+  hour: number,
+  minute = 0,
+  timeZone = DISPLAY_TIMEZONE
+): string {
+  const day = addZonedDays(weekStart, dayOffset, timeZone);
+  const { year, month, day: dom } = getZonedParts(day, timeZone);
+  return zonedDateTimeToUtc(year, month, dom, hour, minute, 0, 0, timeZone).toISOString();
 }
 
-function duration(startDay: number, startHour: number, startMin: number, endDay: number, endHour: number, endMin: number) {
-  const start = at(startDay, startHour, startMin);
-  const end = at(endDay, endHour, endMin);
+function duration(
+  weekStart: Date,
+  startDay: number,
+  startHour: number,
+  startMin: number,
+  endDay: number,
+  endHour: number,
+  endMin: number
+) {
+  const start = atInTimezone(weekStart, startDay, startHour, startMin);
+  const end = atInTimezone(weekStart, endDay, endHour, endMin);
   return { start, end };
 }
 
-export const MOCK_EVENTS: FamilyEvent[] = [
+/** Demo events for the current week — always generated at runtime. */
+export function createMockEvents(referenceDate = new Date()): FamilyEvent[] {
+  const weekStart = getMondayOfWeek(referenceDate);
+  const todayOffset = (() => {
+    const dayName = new Intl.DateTimeFormat("en-US", {
+      timeZone: DISPLAY_TIMEZONE,
+      weekday: "short",
+    }).format(referenceDate);
+    const dayMap: Record<string, number> = {
+      Sun: 6,
+      Mon: 0,
+      Tue: 1,
+      Wed: 2,
+      Thu: 3,
+      Fri: 4,
+      Sat: 5,
+    };
+    return dayMap[dayName] ?? 0;
+  })();
+
+  return [
   // Monday
   {
     id: "1",
     title: "School Drop-off",
     calendarId: "school",
     location: "Lincoln Elementary",
-    ...duration(0, 7, 30, 0, 8, 0),
+    ...duration(weekStart, 0, 7, 30, 0, 8, 0),
   },
   {
     id: "2",
     title: "Team Standup",
     calendarId: "work",
     location: "Home Office",
-    ...duration(0, 9, 0, 0, 9, 30),
+    ...duration(weekStart,0, 9, 0, 0, 9, 30),
   },
   {
     id: "3",
@@ -89,14 +139,14 @@ export const MOCK_EVENTS: FamilyEvent[] = [
     calendarId: "sports",
     location: "Riverside Park Field 3",
     notes: "Bring water bottle and shin guards",
-    ...duration(0, 16, 0, 0, 17, 30),
+    ...duration(weekStart,0, 16, 0, 0, 17, 30),
   },
   {
     id: "4",
     title: "Family Dinner",
     calendarId: "family",
     location: "Home",
-    ...duration(0, 18, 30, 0, 20, 0),
+    ...duration(weekStart,0, 18, 30, 0, 20, 0),
   },
 
   // Tuesday
@@ -106,21 +156,21 @@ export const MOCK_EVENTS: FamilyEvent[] = [
     calendarId: "personal",
     location: "Bright Smiles Dental",
     notes: "Annual checkup",
-    ...duration(1, 10, 0, 1, 11, 0),
+    ...duration(weekStart,1, 10, 0, 1, 11, 0),
   },
   {
     id: "6",
     title: "Piano Lesson",
     calendarId: "school",
     location: "Ms. Chen's Studio",
-    ...duration(1, 15, 30, 1, 16, 30),
+    ...duration(weekStart,1, 15, 30, 1, 16, 30),
   },
   {
     id: "7",
     title: "Grocery Run",
     calendarId: "family",
     location: "Whole Foods",
-    ...duration(1, 17, 0, 1, 18, 0),
+    ...duration(weekStart,1, 17, 0, 1, 18, 0),
   },
 
   // Wednesday
@@ -129,14 +179,14 @@ export const MOCK_EVENTS: FamilyEvent[] = [
     title: "School Pickup",
     calendarId: "school",
     location: "Lincoln Elementary",
-    ...duration(2, 15, 0, 2, 15, 30),
+    ...duration(weekStart,2, 15, 0, 2, 15, 30),
   },
   {
     id: "9",
     title: "Swim Lessons",
     calendarId: "sports",
     location: "Community Pool",
-    ...duration(2, 16, 0, 2, 17, 0),
+    ...duration(weekStart,2, 16, 0, 2, 17, 0),
   },
   {
     id: "10",
@@ -144,7 +194,7 @@ export const MOCK_EVENTS: FamilyEvent[] = [
     calendarId: "personal",
     location: "Living Room",
     notes: "Chapter 12 discussion",
-    ...duration(2, 19, 30, 2, 21, 0),
+    ...duration(weekStart,2, 19, 30, 2, 21, 0),
   },
 
   // Thursday
@@ -154,7 +204,7 @@ export const MOCK_EVENTS: FamilyEvent[] = [
     calendarId: "school",
     location: "Lincoln Elementary — Room 204",
     notes: "Mr. Johnson, 15 min slot",
-    ...duration(3, 14, 0, 3, 14, 30),
+    ...duration(weekStart,3, 14, 0, 3, 14, 30),
   },
   {
     id: "12",
@@ -162,14 +212,14 @@ export const MOCK_EVENTS: FamilyEvent[] = [
     calendarId: "sports",
     location: "Westside Gym",
     notes: "Away game — arrive 30 min early",
-    ...duration(3, 17, 30, 3, 19, 30),
+    ...duration(weekStart,3, 17, 30, 3, 19, 30),
   },
   {
     id: "13",
     title: "Date Night",
     calendarId: "family",
     location: "Bella Italia",
-    ...duration(3, 19, 0, 3, 22, 0),
+    ...duration(weekStart,3, 19, 0, 3, 22, 0),
   },
 
   // Friday
@@ -178,7 +228,7 @@ export const MOCK_EVENTS: FamilyEvent[] = [
     title: "School Assembly",
     calendarId: "school",
     location: "Lincoln Elementary Gym",
-    ...duration(4, 9, 0, 4, 10, 0),
+    ...duration(weekStart,4, 9, 0, 4, 10, 0),
   },
   {
     id: "15",
@@ -186,14 +236,14 @@ export const MOCK_EVENTS: FamilyEvent[] = [
     calendarId: "work",
     location: "Home Office",
     notes: "No meetings block",
-    ...duration(4, 10, 0, 4, 12, 0),
+    ...duration(weekStart,4, 10, 0, 4, 12, 0),
   },
   {
     id: "16",
     title: "Pizza & Movie Night",
     calendarId: "family",
     location: "Home",
-    ...duration(4, 18, 0, 4, 21, 0),
+    ...duration(weekStart,4, 18, 0, 4, 21, 0),
   },
 
   // Saturday
@@ -203,21 +253,21 @@ export const MOCK_EVENTS: FamilyEvent[] = [
     calendarId: "sports",
     location: "Memorial Sports Complex",
     notes: "Bring chairs, sunscreen, snacks",
-    ...duration(5, 8, 0, 5, 14, 0),
+    ...duration(weekStart,5, 8, 0, 5, 14, 0),
   },
   {
     id: "18",
     title: "Birthday Party — Jake",
     calendarId: "family",
     location: "FunZone Arcade",
-    ...duration(5, 14, 30, 5, 17, 0),
+    ...duration(weekStart,5, 14, 30, 5, 17, 0),
   },
   {
     id: "19",
     title: "Farmers Market",
     calendarId: "family",
     location: "Downtown Square",
-    ...duration(5, 9, 0, 5, 10, 30),
+    ...duration(weekStart,5, 9, 0, 5, 10, 30),
   },
 
   // Sunday
@@ -226,21 +276,21 @@ export const MOCK_EVENTS: FamilyEvent[] = [
     title: "Church",
     calendarId: "family",
     location: "St. Mary's",
-    ...duration(6, 10, 0, 6, 11, 30),
+    ...duration(weekStart,6, 10, 0, 6, 11, 30),
   },
   {
     id: "21",
     title: "Meal Prep",
     calendarId: "family",
     location: "Home",
-    ...duration(6, 14, 0, 6, 16, 0),
+    ...duration(weekStart,6, 14, 0, 6, 16, 0),
   },
   {
     id: "22",
     title: "Family Game Night",
     calendarId: "family",
     location: "Living Room",
-    ...duration(6, 18, 0, 6, 20, 30),
+    ...duration(weekStart,6, 18, 0, 6, 20, 30),
   },
 
   // Today-specific extras (will show in agenda)
@@ -248,9 +298,10 @@ export const MOCK_EVENTS: FamilyEvent[] = [
     id: "23",
     title: "Morning Coffee",
     calendarId: "personal",
-    ...duration(new Date().getDay() === 0 ? 6 : new Date().getDay() - 1, 6, 30, new Date().getDay() === 0 ? 6 : new Date().getDay() - 1, 7, 0),
+    ...duration(weekStart, todayOffset, 6, 30, todayOffset, 7, 0),
   },
-];
+  ];
+}
 
 export const MOCK_DISPLAY = {
   title: "Family Calendar",
@@ -293,17 +344,17 @@ export function toFullCalendarEvents(events: FamilyEvent[], calendars: CalendarS
   });
 }
 
-export function getEventsForDay(events: FamilyEvent[], date: Date): FamilyEvent[] {
-  const dayStart = new Date(date);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(date);
-  dayEnd.setHours(23, 59, 59, 999);
-
+export function getEventsForDay(
+  events: FamilyEvent[],
+  date: Date,
+  timeZone: string = DISPLAY_TIMEZONE
+): FamilyEvent[] {
   return events
-    .filter((e) => {
-      const start = new Date(e.start);
-      return start >= dayStart && start <= dayEnd;
-    })
-    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+    .filter((event) => eventOverlapsZonedDay(event, date, timeZone))
+    .sort((a, b) => {
+      const aStart = a.allDay ? a.start : new Date(a.start).toISOString();
+      const bStart = b.allDay ? b.start : new Date(b.start).toISOString();
+      return aStart.localeCompare(bStart);
+    });
 }
 

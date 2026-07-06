@@ -1,6 +1,7 @@
 import { google } from "googleapis";
 import type { calendar_v3 } from "googleapis";
 import { prisma } from "@/lib/db/prisma";
+import { DISPLAY_TIMEZONE } from "@/lib/datetime/timezone";
 import { refreshAccessToken } from "@/lib/google/oauth";
 
 export interface GoogleCalendarListItem {
@@ -95,7 +96,8 @@ function parseGoogleDate(
     return { iso: new Date(dateTime).toISOString(), allDay: false };
   }
   if (date) {
-    return { iso: new Date(`${date}T00:00:00`).toISOString(), allDay: true };
+    // Keep YYYY-MM-DD for all-day events (FullCalendar + timezone-safe)
+    return { iso: date, allDay: true };
   }
   return { iso: new Date().toISOString(), allDay: false };
 }
@@ -108,14 +110,7 @@ function normalizeEvent(
   if (!event.id || !event.summary) return null;
 
   const start = parseGoogleDate(event.start?.dateTime, event.start?.date);
-  let end = parseGoogleDate(event.end?.dateTime, event.end?.date);
-
-  if (start.allDay && end.allDay) {
-    const endDate = new Date(end.iso);
-    endDate.setDate(endDate.getDate() - 1);
-    endDate.setHours(23, 59, 59, 999);
-    end = { iso: endDate.toISOString(), allDay: true };
-  }
+  const end = parseGoogleDate(event.end?.dateTime, event.end?.date);
 
   return {
     id: `${googleCalendarId}:${event.id}`,
@@ -157,6 +152,7 @@ export async function fetchGoogleEventsForUser(
           calendarId: source.googleCalendarId,
           timeMin: timeMin.toISOString(),
           timeMax: timeMax.toISOString(),
+          timeZone: DISPLAY_TIMEZONE,
           singleEvents: true,
           orderBy: "startTime",
           maxResults: 500,

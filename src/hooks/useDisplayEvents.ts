@@ -2,16 +2,25 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CalendarSource, ConnectionStatus, FamilyEvent } from "@/types/calendar";
-import { MOCK_CALENDARS, MOCK_DISPLAY, MOCK_EVENTS } from "@/lib/mock/events";
+import { MOCK_CALENDARS, MOCK_DISPLAY, createMockEvents } from "@/lib/mock/events";
 import { apiFetch } from "@/lib/api/client";
+import {
+  addZonedDays,
+  DISPLAY_TIMEZONE,
+  getDateKeyInTimezone,
+  startOfZonedDay,
+} from "@/lib/datetime/timezone";
 
 const CACHE_PREFIX = "litalendar-events-";
+const CACHE_VERSION = 2;
 
 interface DisplayApiResponse {
   events: FamilyEvent[];
   calendars: CalendarSource[];
   connectionStatus: ConnectionStatus;
   lastUpdated: string;
+  timezone?: string;
+  todayKey?: string;
   error?: string;
   setupUrl?: string;
   settings?: {
@@ -20,6 +29,11 @@ interface DisplayApiResponse {
     autoRefreshMins: number;
     reloadHours: number;
   };
+}
+
+interface CachedDisplayPayload extends DisplayApiResponse {
+  version: number;
+  fetchedAt: string;
 }
 
 interface UseDisplayEventsOptions {
@@ -43,12 +57,35 @@ interface UseDisplayEventsResult {
   refresh: () => Promise<void>;
 }
 
-function loadCache(slug: string): DisplayApiResponse | null {
+function loadCache(slug: string): CachedDisplayPayload | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(`${CACHE_PREFIX}${slug}`);
     if (!raw) return null;
-    return JSON.parse(raw) as DisplayApiResponse;
+    const parsed = JSON.parse(raw) as CachedDisplayPayload;
+    if (parsed.version !== CACHE_VERSION) return null;
+
+    const fetchedAt = new Date(parsed.fetchedAt);
+    if (Number.isNaN(fetchedAt.getTime())) return null;
+
+    const ageMs = Date.now() - fetchedAt.getTime();
+    if (ageMs > 24 * 60 * 60 * 1000) return null;
+
+    const todayKey = getDateKeyInTimezone(new Date(), DISPLAY_TIMEZONE);
+    const rangeStart = startOfZonedDay(addZonedDays(new Date(), -30, DISPLAY_TIMEZONE));
+    const hasVeryStaleEvent = (parsed.events ?? []).some((event) => {
+      if (event.allDay) {
+        const startKey = event.start.slice(0, 10);
+        const cutoffKey = getDateKeyInTimezone(rangeStart, DISPLAY_TIMEZONE);
+        return startKey < cutoffKey;
+      }
+      return new Date(event.start).getTime() < rangeStart.getTime();
+    });
+    if (hasVeryStaleEvent && parsed.todayKey && parsed.todayKey !== todayKey) {
+      return null;
+    }
+
+    return parsed;
   } catch {
     return null;
   }
@@ -57,7 +94,14 @@ function loadCache(slug: string): DisplayApiResponse | null {
 function saveCache(slug: string, data: DisplayApiResponse) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(`${CACHE_PREFIX}${slug}`, JSON.stringify(data));
+    const payload: CachedDisplayPayload = {
+      ...data,
+      version: CACHE_VERSION,
+      fetchedAt: new Date().toISOString(),
+      timezone: data.timezone ?? DISPLAY_TIMEZONE,
+      todayKey: data.todayKey ?? getDateKeyInTimezone(new Date(), DISPLAY_TIMEZONE),
+    };
+    localStorage.setItem(`${CACHE_PREFIX}${slug}`, JSON.stringify(payload));
   } catch {
     // ignore quota errors
   }
@@ -71,7 +115,7 @@ export function useDisplayEvents({
   const cached = isLive ? loadCache(displayId) : null;
 
   const [events, setEvents] = useState<FamilyEvent[]>(
-    cached?.events ?? (isLive ? [] : MOCK_EVENTS)
+    cached?.events ?? (isLive ? [] : createMockEvents())
   );
   const [calendars, setCalendars] = useState<CalendarSource[]>(
     cached?.calendars ?? (isLive ? [] : MOCK_CALENDARS)
