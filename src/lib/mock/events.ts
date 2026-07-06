@@ -258,12 +258,12 @@ export const MOCK_DISPLAY = {
   editingEnabled: true,
 };
 
-export function getCalendarById(id: string): CalendarSource | undefined {
-  return MOCK_CALENDARS.find((c) => c.id === id);
+export function getCalendarById(id: string, calendars: CalendarSource[] = MOCK_CALENDARS): CalendarSource | undefined {
+  return calendars.find((c) => c.id === id);
 }
 
-export function enrichEvent(event: FamilyEvent) {
-  const cal = getCalendarById(event.calendarId);
+export function enrichEvent(event: FamilyEvent, calendars: CalendarSource[] = MOCK_CALENDARS) {
+  const cal = getCalendarById(event.calendarId, calendars);
   return {
     ...event,
     calendarName: cal?.name ?? "Unknown",
@@ -271,9 +271,9 @@ export function enrichEvent(event: FamilyEvent) {
   };
 }
 
-export function toFullCalendarEvents(events: FamilyEvent[]) {
+export function toFullCalendarEvents(events: FamilyEvent[], calendars: CalendarSource[] = MOCK_CALENDARS) {
   return events.map((event) => {
-    const cal = getCalendarById(event.calendarId);
+    const cal = getCalendarById(event.calendarId, calendars);
     return {
       id: event.id,
       title: event.title,

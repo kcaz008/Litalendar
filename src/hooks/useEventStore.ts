@@ -40,6 +40,10 @@ export function useEventStore(initialEvents: FamilyEvent[]) {
     setUndo(null);
   }, [undo, clearUndoTimer]);
 
+  const replaceEvents = useCallback((next: FamilyEvent[]) => {
+    setEvents(cloneEvents(next));
+  }, []);
+
   const dismissUndo = useCallback(() => {
     clearUndoTimer();
     setUndo(null);
@@ -93,5 +97,6 @@ export function useEventStore(initialEvents: FamilyEvent[]) {
     getEventById,
     performUndo,
     dismissUndo,
+    replaceEvents,
   };
 }

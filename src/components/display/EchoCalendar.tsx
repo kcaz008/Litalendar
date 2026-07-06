@@ -14,6 +14,7 @@ import type { FamilyEvent } from "@/types/calendar";
 
 interface EchoCalendarProps {
   events: FamilyEvent[];
+  calendars: import("@/types/calendar").CalendarSource[];
   currentView: CalendarViewType;
   onViewChange: (view: CalendarViewType) => void;
   calendarRef: React.MutableRefObject<CalendarApi | null>;
@@ -24,6 +25,7 @@ interface EchoCalendarProps {
 
 export function EchoCalendar({
   events,
+  calendars,
   currentView,
   onViewChange,
   calendarRef,
@@ -64,7 +66,7 @@ export function EchoCalendar({
         plugins={[timeGridPlugin, dayGridPlugin, listPlugin, interactionPlugin]}
         initialView={currentView}
         headerToolbar={false}
-        events={toFullCalendarEvents(events)}
+        events={toFullCalendarEvents(events, calendars)}
         height="100%"
         allDaySlot={false}
         nowIndicator

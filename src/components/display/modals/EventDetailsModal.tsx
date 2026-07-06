@@ -1,11 +1,13 @@
 "use client";
 
+import type { CalendarSource } from "@/types/calendar";
 import { enrichEvent, formatDateLong, formatTimeRange } from "@/lib/mock/events";
 import type { FamilyEvent } from "@/types/calendar";
 import { Modal } from "./Modal";
 
 interface EventDetailsModalProps {
   event: FamilyEvent | null;
+  calendars: CalendarSource[];
   open: boolean;
   onClose: () => void;
   onEdit: () => void;
@@ -14,6 +16,7 @@ interface EventDetailsModalProps {
 
 export function EventDetailsModal({
   event,
+  calendars,
   open,
   onClose,
   onEdit,
@@ -21,7 +24,7 @@ export function EventDetailsModal({
 }: EventDetailsModalProps) {
   if (!event) return null;
 
-  const enriched = enrichEvent(event);
+  const enriched = enrichEvent(event, calendars);
 
   return (
     <Modal

@@ -1,29 +1,32 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CalendarApi, EventClickArg, EventDropArg } from "@fullcalendar/core";
 import type { EventResizeDoneArg } from "@fullcalendar/interaction";
 import { DisplayTopBar, type CalendarViewType } from "@/components/display/DisplayTopBar";
 import { DisplaySidePanel } from "@/components/display/DisplaySidePanel";
 import { EchoCalendar } from "@/components/display/EchoCalendar";
 import { CalendarLegend } from "@/components/display/CalendarLegend";
+import { SetupRequired } from "@/components/display/SetupRequired";
 import { UndoToast } from "@/components/display/UndoToast";
 import { EventDetailsModal } from "@/components/display/modals/EventDetailsModal";
 import { EventFormModal, type EventFormData } from "@/components/display/modals/EventFormModal";
 import { ConfirmActionModal } from "@/components/display/modals/ConfirmActionModal";
 import { ConflictModal } from "@/components/display/modals/ConflictModal";
 import { useEventStore } from "@/hooks/useEventStore";
+import { useDisplayEvents } from "@/hooks/useDisplayEvents";
 import {
   eventFromForm,
   findConflicts,
   formFromEvent,
   type AddEventPrefill,
 } from "@/lib/events/utils";
-import { MOCK_DISPLAY, MOCK_EVENTS } from "@/lib/mock/events";
+import { MOCK_EVENTS } from "@/lib/mock/events";
 import type { FamilyEvent } from "@/types/calendar";
 
 interface DisplayDashboardProps {
   displayId: string;
+  displayKey?: string;
 }
 
 interface PendingChange {
@@ -37,10 +40,11 @@ interface ConflictState {
   onConfirm: () => void;
 }
 
-export function DisplayDashboard({ displayId }: DisplayDashboardProps) {
+export function DisplayDashboard({ displayId, displayKey }: DisplayDashboardProps) {
   const calendarRef = useRef<CalendarApi | null>(null);
   const [currentView, setCurrentView] = useState<CalendarViewType>("timeGridWeek");
-  const [lastUpdated, setLastUpdated] = useState(() => new Date());
+
+  const displayData = useDisplayEvents({ displayId, displayKey });
 
   const {
     events,
@@ -51,7 +55,16 @@ export function DisplayDashboard({ displayId }: DisplayDashboardProps) {
     getEventById,
     performUndo,
     dismissUndo,
-  } = useEventStore(MOCK_EVENTS);
+    replaceEvents,
+  } = useEventStore(displayKey ? [] : MOCK_EVENTS);
+
+  useEffect(() => {
+    if (displayData.isLive && !displayData.isLoading) {
+      replaceEvents(displayData.events);
+    }
+  }, [displayData.events, displayData.isLive, displayData.isLoading, replaceEvents]);
+
+  const calendars = displayData.calendars;
 
   const [detailsEventId, setDetailsEventId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -82,20 +95,22 @@ export function DisplayDashboard({ displayId }: DisplayDashboardProps) {
   }, []);
 
   const openAddEvent = useCallback((prefill?: AddEventPrefill) => {
+    if (!displayData.editingEnabled && displayData.isLive) return;
     setFormMode("add");
     setEditEventId(null);
     setAddPrefill(prefill);
     setDetailsEventId(null);
     setFormOpen(true);
-  }, []);
+  }, [displayData.editingEnabled, displayData.isLive]);
 
   const openEditEvent = useCallback((eventId: string) => {
+    if (!displayData.editingEnabled && displayData.isLive) return;
     setFormMode("edit");
     setEditEventId(eventId);
     setAddPrefill(undefined);
     setDetailsEventId(null);
     setFormOpen(true);
-  }, []);
+  }, [displayData.editingEnabled, displayData.isLive]);
 
   const checkConflictsAndApply = useCallback(
     (event: FamilyEvent, apply: () => void) => {
@@ -170,6 +185,10 @@ export function DisplayDashboard({ displayId }: DisplayDashboardProps) {
 
   const handleEventDrop = useCallback(
     (info: EventDropArg) => {
+      if (!displayData.editingEnabled && displayData.isLive) {
+        info.revert();
+        return;
+      }
       const oldEvent = getEventById(info.event.id);
       if (!oldEvent || !info.event.start) {
         info.revert();
@@ -185,11 +204,15 @@ export function DisplayDashboard({ displayId }: DisplayDashboardProps) {
       info.revert();
       setPendingMove({ oldEvent, newEvent });
     },
-    [getEventById]
+    [getEventById, displayData.editingEnabled, displayData.isLive]
   );
 
   const handleEventResize = useCallback(
     (info: EventResizeDoneArg) => {
+      if (!displayData.editingEnabled && displayData.isLive) {
+        info.revert();
+        return;
+      }
       const oldEvent = getEventById(info.event.id);
       if (!oldEvent || !info.event.start || !info.event.end) {
         info.revert();
@@ -205,23 +228,42 @@ export function DisplayDashboard({ displayId }: DisplayDashboardProps) {
       info.revert();
       setPendingResize({ oldEvent, newEvent });
     },
-    [getEventById]
+    [getEventById, displayData.editingEnabled, displayData.isLive]
   );
 
   const handleToday = useCallback(() => {
     calendarRef.current?.today();
   }, []);
 
-  const handleRefresh = useCallback(() => {
-    setLastUpdated(new Date());
-  }, []);
+  const handleRefresh = useCallback(async () => {
+    await displayData.refresh();
+  }, [displayData]);
+
+  if (
+    displayData.isLive &&
+    !displayData.isLoading &&
+    displayData.connectionStatus === "auth_error" &&
+    events.length === 0
+  ) {
+    return (
+      <SetupRequired
+        displayId={displayId}
+        error={displayData.error}
+        setupUrl={displayData.setupUrl}
+      />
+    );
+  }
+
+  if (displayData.isLive && !displayKey) {
+    return <SetupRequired displayId={displayId} error="Missing display key" />;
+  }
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden">
       <DisplayTopBar
-        title={MOCK_DISPLAY.title}
-        connectionStatus={MOCK_DISPLAY.connectionStatus}
-        lastUpdated={lastUpdated}
+        title={displayData.title}
+        connectionStatus={displayData.connectionStatus}
+        lastUpdated={displayData.lastUpdated}
         currentView={currentView}
         onViewChange={setCurrentView}
         onToday={handleToday}
@@ -234,6 +276,7 @@ export function DisplayDashboard({ displayId }: DisplayDashboardProps) {
           <div className="min-h-0 flex-1">
             <EchoCalendar
               events={events}
+              calendars={calendars}
               currentView={currentView}
               onViewChange={setCurrentView}
               calendarRef={calendarRef}
@@ -242,11 +285,12 @@ export function DisplayDashboard({ displayId }: DisplayDashboardProps) {
               onEventResize={handleEventResize}
             />
           </div>
-          <CalendarLegend />
+          <CalendarLegend calendars={calendars} />
         </div>
 
         <DisplaySidePanel
           events={events}
+          calendars={calendars}
           onEventClick={openEventDetails}
           onQuickAdd={openAddEvent}
         />
@@ -254,15 +298,20 @@ export function DisplayDashboard({ displayId }: DisplayDashboardProps) {
 
       <EventDetailsModal
         event={selectedEvent ?? null}
+        calendars={calendars}
         open={!!selectedEvent}
         onClose={() => setDetailsEventId(null)}
         onEdit={() => selectedEvent && openEditEvent(selectedEvent.id)}
-        onDelete={() => selectedEvent && setDeleteTarget(selectedEvent)}
+        onDelete={() => {
+          if (!displayData.editingEnabled && displayData.isLive) return;
+          if (selectedEvent) setDeleteTarget(selectedEvent);
+        }}
       />
 
       <EventFormModal
         open={formOpen}
         mode={formMode}
+        calendars={calendars}
         initialForm={editEvent ? formFromEvent(editEvent) : undefined}
         prefill={formMode === "add" ? addPrefill : undefined}
         onSave={handleFormSave}
@@ -311,6 +360,12 @@ export function DisplayDashboard({ displayId }: DisplayDashboardProps) {
 
       {undo && (
         <UndoToast message={undo.message} onUndo={performUndo} onDismiss={dismissUndo} />
+      )}
+
+      {displayData.isLive && displayData.isLoading && events.length === 0 && (
+        <div className="pointer-events-none fixed inset-0 flex items-center justify-center bg-black/40">
+          <p className="rounded-xl bg-black/60 px-6 py-4 text-lg text-white">Loading calendars...</p>
+        </div>
       )}
 
       <span className="sr-only" data-display-id={displayId}>
