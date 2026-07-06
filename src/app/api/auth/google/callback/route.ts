@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma, isDatabaseConfigured } from "@/lib/db/prisma";
-import { createSession } from "@/lib/auth/session";
+import { signSessionToken, attachSessionCookie } from "@/lib/auth/session";
 import {
   exchangeCodeForTokens,
   fetchGoogleUserInfo,
@@ -92,9 +92,10 @@ export async function GET(request: Request) {
       console.error("Calendar sync on login:", syncErr);
     }
 
-    await createSession({ userId: user.id, email: user.email });
-
-    return NextResponse.redirect(`${getAppUrl()}${returnTo}`);
+    const token = await signSessionToken({ userId: user.id, email: user.email });
+    const response = NextResponse.redirect(`${getAppUrl()}${returnTo}`);
+    attachSessionCookie(response, token);
+    return response;
   } catch (err) {
     console.error("OAuth callback error:", err);
     return NextResponse.redirect(`${getAppUrl()}/login?error=auth_failed`);

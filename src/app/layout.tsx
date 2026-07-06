@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Outfit, DM_Sans } from "next/font/google";
+import { BodyScrollGuard } from "@/components/admin/BodyScrollGuard";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -33,7 +34,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${outfit.variable} ${dmSans.variable}`}>
-      <body className="font-body antialiased">{children}</body>
+      <body className="font-body antialiased">
+        <BodyScrollGuard />
+        {children}
+      </body>
     </html>
   );
 }

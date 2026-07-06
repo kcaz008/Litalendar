@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CalendarSource, ConnectionStatus, FamilyEvent } from "@/types/calendar";
 import { MOCK_CALENDARS, MOCK_DISPLAY, MOCK_EVENTS } from "@/lib/mock/events";
+import { apiFetch } from "@/lib/api/client";
 
 const CACHE_PREFIX = "litalendar-events-";
 
@@ -99,7 +100,7 @@ export function useDisplayEvents({
     if (!displayKey) return;
 
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/display/${displayId}/events?key=${encodeURIComponent(displayKey)}`
       );
 

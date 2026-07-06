@@ -1,6 +1,26 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+
+const DISPLAY_URL_KEY = "litalendar-display-url";
 
 export default function HomePage() {
+  const [displayUrl, setDisplayUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(DISPLAY_URL_KEY);
+      if (stored) setDisplayUrl(stored);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const displayHref = displayUrl
+    ? displayUrl.replace(/^https?:\/\/[^/]+/, "")
+    : null;
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 bg-gradient-to-br from-[#0a0e1a] via-[#12182b] to-[#0d1220] p-8 text-center">
       <div className="max-w-lg">
@@ -11,23 +31,26 @@ export default function HomePage() {
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row">
-        <Link
-          href="/setup"
-          className="touch-btn-primary rounded-2xl px-10 py-4 text-xl"
-        >
-          Connect Google Calendars
+        <Link href="/setup" className="touch-btn-primary rounded-2xl px-10 py-4 text-xl">
+          Setup / Settings
         </Link>
-        <Link
-          href="/display/kitchen"
-          className="touch-btn-secondary rounded-2xl px-10 py-4 text-xl"
-        >
-          Demo (mock data)
-        </Link>
+        {displayHref ? (
+          <Link href={displayHref} className="touch-btn-primary rounded-2xl px-10 py-4 text-xl">
+            Open My Display
+          </Link>
+        ) : (
+          <Link href="/display/kitchen" className="touch-btn-secondary rounded-2xl px-10 py-4 text-xl">
+            Demo (mock data)
+          </Link>
+        )}
       </div>
 
-      <p className="text-sm text-white/30">
-        Phases 3–4 — Setup, Google OAuth, and live calendar fetching
-      </p>
+      {displayHref && (
+        <p className="max-w-md text-sm text-white/40">
+          Use <strong className="text-white/60">Open My Display</strong> on your Echo Show.
+          Demo mode is mock data only.
+        </p>
+      )}
     </main>
   );
 }
