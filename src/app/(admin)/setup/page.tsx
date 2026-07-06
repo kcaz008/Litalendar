@@ -278,7 +278,7 @@ export default function SetupPage() {
           <p className="mt-1 text-white/50">
             Tap to turn calendars on or off. Changes save immediately.
           </p>
-          <ul className="mt-4 space-y-2">
+          <ul className="pointer-events-auto relative z-10 mt-4 space-y-2">
             {calendars.map((cal) => (
               <li key={cal.id}>
                 <button

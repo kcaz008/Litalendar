@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/api/client";
 
 interface CalendarSourceRow {
   id: string;
@@ -49,7 +50,7 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
 
   const load = useCallback(async () => {
-    const meRes = await fetch("/api/auth/me");
+    const meRes = await apiFetch("/api/auth/me");
     const me = await meRes.json();
     if (!me.user) {
       router.replace("/login?returnTo=/settings");
@@ -57,9 +58,9 @@ export default function SettingsPage() {
     }
 
     const [calRes, settingsRes, dispRes] = await Promise.all([
-      fetch("/api/calendars"),
-      fetch("/api/settings"),
-      fetch("/api/displays"),
+      apiFetch("/api/calendars"),
+      apiFetch("/api/settings"),
+      apiFetch("/api/displays"),
     ]);
 
     if (calRes.ok) {
@@ -86,9 +87,8 @@ export default function SettingsPage() {
   const saveSettings = async () => {
     setSaving(true);
     const display = displays[0];
-    await fetch("/api/settings", {
+    await apiFetch("/api/settings", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...settings,
         displayId: display?.id,
@@ -102,18 +102,16 @@ export default function SettingsPage() {
   };
 
   const toggleCalendar = async (id: string, enabled: boolean) => {
-    await fetch(`/api/calendars/${id}`, {
+    await apiFetch(`/api/calendars/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enabled }),
     });
     setCalendars((prev) => prev.map((c) => (c.id === id ? { ...c, enabled } : c)));
   };
 
   const setCalendarColor = async (id: string, backgroundColor: string) => {
-    await fetch(`/api/calendars/${id}`, {
+    await apiFetch(`/api/calendars/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ backgroundColor, borderColor: backgroundColor }),
     });
     setCalendars((prev) =>
@@ -126,9 +124,8 @@ export default function SettingsPage() {
     if (!display || !confirm("Regenerate display key? Old Echo Show links will stop working.")) {
       return;
     }
-    const res = await fetch("/api/settings", {
+    const res = await apiFetch("/api/settings", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ displayId: display.id, regenerateKey: true }),
     });
     if (res.ok) {
