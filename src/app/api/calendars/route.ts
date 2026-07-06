@@ -50,9 +50,15 @@ export async function POST() {
     return NextResponse.json({ sources, googleCalendars });
   } catch (err) {
     console.error("Calendar sync error:", err);
+    const message = err instanceof Error ? err.message : "Sync failed";
+    const needsReconnect = message.toLowerCase().includes("insufficient authentication scopes");
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Sync failed" },
-      { status: 500 }
+      {
+        error: message,
+        needsReconnect,
+        reconnectUrl: "/api/auth/google?reconnect=1&returnTo=/setup",
+      },
+      { status: needsReconnect ? 403 : 500 }
     );
   }
 }

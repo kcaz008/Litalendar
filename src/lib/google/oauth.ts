@@ -2,7 +2,24 @@ const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo";
 
-export const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+/** Read calendar list + events (required for /api/calendars sync) */
+export const GOOGLE_CALENDAR_READONLY_SCOPE =
+  "https://www.googleapis.com/auth/calendar.readonly";
+
+/** Create/update/delete events (Phase 5) */
+export const GOOGLE_CALENDAR_EVENTS_SCOPE =
+  "https://www.googleapis.com/auth/calendar.events";
+
+export const GOOGLE_OAUTH_SCOPES = [
+  "openid",
+  "email",
+  "profile",
+  GOOGLE_CALENDAR_READONLY_SCOPE,
+  GOOGLE_CALENDAR_EVENTS_SCOPE,
+] as const;
+
+/** @deprecated use GOOGLE_CALENDAR_EVENTS_SCOPE */
+export const GOOGLE_CALENDAR_SCOPE = GOOGLE_CALENDAR_EVENTS_SCOPE;
 
 export function getAppUrl(): string {
   return (
@@ -21,14 +38,10 @@ export function buildGoogleAuthUrl(state: string): string {
     client_id: process.env.GOOGLE_CLIENT_ID!,
     redirect_uri: `${getAppUrl()}/api/auth/google/callback`,
     response_type: "code",
-    scope: [
-      "openid",
-      "email",
-      "profile",
-      GOOGLE_CALENDAR_SCOPE,
-    ].join(" "),
+    scope: GOOGLE_OAUTH_SCOPES.join(" "),
     access_type: "offline",
     prompt: "consent",
+    include_granted_scopes: "true",
     state,
   });
   return `${GOOGLE_AUTH_URL}?${params.toString()}`;
