@@ -1,6 +1,12 @@
 "use client";
 
 import {
+  addZonedDays,
+  DISPLAY_TIMEZONE,
+  formatZonedTime,
+  getTodayInTimezone,
+} from "@/lib/datetime/timezone";
+import {
   enrichEvent,
   formatTimeRange,
   getEventsForDay,
@@ -17,7 +23,7 @@ interface AgendaSectionProps {
 }
 
 function AgendaSection({ title, date, events, calendars, emptyMessage, onEventClick }: AgendaSectionProps & { calendars: import("@/types/calendar").CalendarSource[] }) {
-  const dateLabel = date.toLocaleDateString("en-US", {
+  const dateLabel = formatZonedTime(date, {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -84,12 +90,11 @@ interface DisplaySidePanelProps {
 }
 
 export function DisplaySidePanel({ events, calendars, onEventClick, onQuickAdd }: DisplaySidePanelProps) {
-  const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const today = getTodayInTimezone(DISPLAY_TIMEZONE);
+  const tomorrow = addZonedDays(today, 1, DISPLAY_TIMEZONE);
 
-  const todayEvents = getEventsForDay(events, today);
-  const tomorrowEvents = getEventsForDay(events, tomorrow);
+  const todayEvents = getEventsForDay(events, today, DISPLAY_TIMEZONE);
+  const tomorrowEvents = getEventsForDay(events, tomorrow, DISPLAY_TIMEZONE);
 
   return (
     <aside className="flex h-full w-[340px] shrink-0 flex-col gap-5 glass-panel p-5 xl:w-[380px]">

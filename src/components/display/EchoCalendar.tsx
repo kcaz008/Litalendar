@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -10,6 +10,7 @@ import type { CalendarApi, EventClickArg, EventDropArg } from "@fullcalendar/cor
 import type { EventResizeDoneArg } from "@fullcalendar/interaction";
 import type { CalendarViewType } from "@/components/display/DisplayTopBar";
 import { toFullCalendarEvents } from "@/lib/mock/events";
+import { DISPLAY_TIMEZONE, getDateKeyInTimezone } from "@/lib/datetime/timezone";
 import type { FamilyEvent } from "@/types/calendar";
 
 interface EchoCalendarProps {
@@ -34,13 +35,18 @@ export function EchoCalendar({
   onEventResize,
 }: EchoCalendarProps) {
   const internalRef = useRef<FullCalendar>(null);
+  const todayKey = useMemo(
+    () => getDateKeyInTimezone(new Date(), DISPLAY_TIMEZONE),
+    []
+  );
 
   useEffect(() => {
     const api = internalRef.current?.getApi();
     if (api) {
       calendarRef.current = api;
+      api.today();
     }
-  }, [calendarRef]);
+  }, [calendarRef, todayKey]);
 
   useEffect(() => {
     const api = internalRef.current?.getApi();
@@ -65,6 +71,8 @@ export function EchoCalendar({
         ref={internalRef}
         plugins={[timeGridPlugin, dayGridPlugin, listPlugin, interactionPlugin]}
         initialView={currentView}
+        initialDate={todayKey}
+        timeZone={DISPLAY_TIMEZONE}
         headerToolbar={false}
         events={toFullCalendarEvents(events, calendars)}
         height="100%"
@@ -128,9 +136,14 @@ export function EchoCalendar({
 
 function getScrollTime(view: CalendarViewType): string {
   const now = new Date();
-  const hour = now.getHours();
+  const hour = Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: DISPLAY_TIMEZONE,
+      hour: "numeric",
+      hour12: false,
+    }).format(now)
+  );
   if (view === "timeGridWeek") {
-    // Week overview: start at top so the full day is visible
     return "05:00:00";
   }
   const scrollHour = Math.max(6, hour - 1);

@@ -3,6 +3,12 @@ import type { CalendarSource as DBCalendarSource, Display, AppSettings } from "@
 import { prisma } from "@/lib/db/prisma";
 import type { CalendarSource, FamilyEvent } from "@/types/calendar";
 import type { NormalizedGoogleEvent } from "@/lib/google/calendar";
+import {
+  addZonedDays,
+  DISPLAY_TIMEZONE,
+  endOfZonedDay,
+  startOfZonedDay,
+} from "@/lib/datetime/timezone";
 
 export function generatePrivateKey(): string {
   return randomBytes(24).toString("base64url");
@@ -81,16 +87,13 @@ export function googleEventToFamilyEvent(event: NormalizedGoogleEvent): FamilyEv
   };
 }
 
-export function getEventFetchRange(): { timeMin: Date; timeMax: Date } {
+export function getEventFetchRange(timeZone: string = DISPLAY_TIMEZONE): {
+  timeMin: Date;
+  timeMax: Date;
+} {
   const now = new Date();
-  const timeMin = new Date(now);
-  timeMin.setDate(timeMin.getDate() - 14);
-  timeMin.setHours(0, 0, 0, 0);
-
-  const timeMax = new Date(now);
-  timeMax.setDate(timeMax.getDate() + 60);
-  timeMax.setHours(23, 59, 59, 999);
-
+  const timeMin = startOfZonedDay(addZonedDays(now, -14, timeZone), timeZone);
+  const timeMax = endOfZonedDay(addZonedDays(now, 60, timeZone), timeZone);
   return { timeMin, timeMax };
 }
 

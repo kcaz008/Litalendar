@@ -21,7 +21,7 @@ import {
   formFromEvent,
   type AddEventPrefill,
 } from "@/lib/events/utils";
-import { MOCK_EVENTS } from "@/lib/mock/events";
+import { createMockEvents } from "@/lib/mock/events";
 import type { FamilyEvent } from "@/types/calendar";
 
 interface DisplayDashboardProps {
@@ -63,11 +63,12 @@ export function DisplayDashboard({ displayId, displayKey }: DisplayDashboardProp
     performUndo,
     dismissUndo,
     replaceEvents,
-  } = useEventStore(displayKey ? [] : MOCK_EVENTS);
+  } = useEventStore(displayKey ? [] : createMockEvents());
 
   useEffect(() => {
     if (displayData.isLive && !displayData.isLoading) {
       replaceEvents(displayData.events);
+      calendarRef.current?.today();
     }
   }, [displayData.events, displayData.isLive, displayData.isLoading, replaceEvents]);
 

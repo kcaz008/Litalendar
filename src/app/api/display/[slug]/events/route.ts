@@ -11,6 +11,7 @@ import {
   validateDisplayAccess,
   getDisplayUrl,
 } from "@/lib/db/display";
+import { DISPLAY_TIMEZONE, getDateKeyInTimezone } from "@/lib/datetime/timezone";
 import { getAppUrl } from "@/lib/google/oauth";
 import type { ConnectionStatus } from "@/types/calendar";
 
@@ -86,6 +87,8 @@ export async function GET(request: Request, { params }: RouteParams) {
     allCalendars: calendars,
     connectionStatus,
     lastUpdated: new Date().toISOString(),
+    timezone: DISPLAY_TIMEZONE,
+    todayKey: getDateKeyInTimezone(new Date(), DISPLAY_TIMEZONE),
     error: errorMessage,
     setupUrl: getDisplayUrl(display.slug, display.privateKey),
     settings: {
