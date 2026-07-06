@@ -19,13 +19,21 @@
 
 * {
   -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
 }
 
 html,
 body {
+  min-height: 100%;
+}
+
+/* Echo display only — applied on /display/* pages */
+body.display-locked {
   height: 100%;
   overflow: hidden;
+}
+
+body.display-locked * {
+  touch-action: manipulation;
 }
 
 body {

@@ -46,6 +46,13 @@ export function DisplayDashboard({ displayId, displayKey }: DisplayDashboardProp
 
   const displayData = useDisplayEvents({ displayId, displayKey });
 
+  useEffect(() => {
+    document.body.classList.add("display-locked");
+    return () => {
+      document.body.classList.remove("display-locked");
+    };
+  }, []);
+
   const {
     events,
     undo,
