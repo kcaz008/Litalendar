@@ -24,6 +24,11 @@
 
 html,
 body {
+  min-height: 100%;
+}
+
+/* Echo display only — applied on /display/* pages */
+body.display-locked {
   height: 100%;
   overflow: hidden;
 }

@@ -52,6 +52,22 @@ export async function POST() {
     console.error("Calendar sync error:", err);
     const message = err instanceof Error ? err.message : "Sync failed";
     const needsReconnect = message.toLowerCase().includes("insufficient authentication scopes");
+
+    // Return existing DB calendars when sync fails so UI stays usable
+    const existingSources = await prisma.calendarSource.findMany({
+      where: { googleConnection: { userId: session.userId } },
+      orderBy: { name: "asc" },
+    });
+
+    if (existingSources.length > 0) {
+      return NextResponse.json({
+        sources: existingSources,
+        warning: message,
+        needsReconnect,
+        reconnectUrl: "/api/auth/google?reconnect=1&returnTo=/setup",
+      });
+    }
+
     return NextResponse.json(
       {
         error: message,

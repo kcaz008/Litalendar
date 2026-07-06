@@ -259,7 +259,7 @@ export function DisplayDashboard({ displayId, displayKey }: DisplayDashboardProp
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden">
+    <div className="display-locked flex h-screen w-screen flex-col overflow-hidden">
       <DisplayTopBar
         title={displayData.title}
         connectionStatus={displayData.connectionStatus}

@@ -20,10 +20,22 @@ interface DisplayRow {
   privateKey: string;
 }
 
+function applyCalendars(
+  sources: CalendarSourceRow[],
+  setCalendars: (c: CalendarSourceRow[]) => void,
+  clearErrors: () => void
+) {
+  setCalendars(sources);
+  if (sources.length > 0) {
+    clearErrors();
+  }
+}
+
 export default function SetupPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [user, setUser] = useState<{ email: string; hasGoogle: boolean } | null>(null);
   const [calendars, setCalendars] = useState<CalendarSourceRow[]>([]);
   const [displays, setDisplays] = useState<DisplayRow[]>([]);
@@ -31,43 +43,58 @@ export default function SetupPage() {
   const [needsReconnect, setNeedsReconnect] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const clearErrors = useCallback(() => {
+    setError(null);
+    setNeedsReconnect(false);
+  }, []);
+
+  const loadCalendars = useCallback(async (): Promise<CalendarSourceRow[]> => {
+    const res = await fetch("/api/calendars");
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error ?? "Failed to load calendars");
+    }
+    const data = await res.json();
+    return data.sources ?? [];
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    clearErrors();
 
-    const meRes = await fetch("/api/auth/me");
-    const me = await meRes.json();
+    try {
+      const meRes = await fetch("/api/auth/me");
+      const me = await meRes.json();
 
-    if (!me.configured) {
-      setError("Database not configured. Add DATABASE_URL to your Vercel project.");
+      if (!me.configured) {
+        setError("Database not configured. Add DATABASE_URL to your Vercel project.");
+        return;
+      }
+
+      if (!me.user) {
+        router.replace("/login?returnTo=/setup");
+        return;
+      }
+
+      setUser({ email: me.user.email, hasGoogle: me.user.hasGoogle });
+
+      const [sources, dispRes] = await Promise.all([
+        loadCalendars(),
+        fetch("/api/displays"),
+      ]);
+
+      applyCalendars(sources, setCalendars, clearErrors);
+
+      if (dispRes.ok) {
+        const dispData = await dispRes.json();
+        setDisplays(dispData.displays ?? []);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load setup");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    if (!me.user) {
-      router.replace("/login?returnTo=/setup");
-      return;
-    }
-
-    setUser({ email: me.user.email, hasGoogle: me.user.hasGoogle });
-
-    const [calRes, dispRes] = await Promise.all([
-      fetch("/api/calendars"),
-      fetch("/api/displays"),
-    ]);
-
-    if (calRes.ok) {
-      const calData = await calRes.json();
-      setCalendars(calData.sources ?? []);
-    }
-
-    if (dispRes.ok) {
-      const dispData = await dispRes.json();
-      setDisplays(dispData.displays ?? []);
-    }
-
-    setLoading(false);
-  }, [router]);
+  }, [router, loadCalendars, clearErrors]);
 
   useEffect(() => {
     load();
@@ -75,28 +102,64 @@ export default function SetupPage() {
 
   const syncCalendars = async () => {
     setSyncing(true);
-    setError(null);
-    setNeedsReconnect(false);
-    const res = await fetch("/api/calendars", { method: "POST" });
-    if (res.ok) {
-      const data = await res.json();
-      setCalendars(data.sources ?? []);
-    } else {
+    clearErrors();
+
+    try {
+      const res = await fetch("/api/calendars", { method: "POST" });
       const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        applyCalendars(data.sources ?? [], setCalendars, clearErrors);
+        setUser((u) => (u ? { ...u, hasGoogle: true } : u));
+        if (data.warning) {
+          setNeedsReconnect(Boolean(data.needsReconnect));
+        }
+        return;
+      }
+
+      // POST failed — try loading existing calendars from DB without blocking UI
+      try {
+        const existing = await loadCalendars();
+        if (existing.length > 0) {
+          applyCalendars(existing, setCalendars, clearErrors);
+          // Non-blocking warning only when we still have calendars to use
+          if (data.needsReconnect) {
+            setNeedsReconnect(true);
+          }
+          return;
+        }
+      } catch {
+        // fall through to full error below
+      }
+
       setError(data.error ?? "Calendar sync failed");
       setNeedsReconnect(Boolean(data.needsReconnect));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Calendar sync failed");
+    } finally {
+      setSyncing(false);
     }
-    setSyncing(false);
   };
 
   const toggleCalendar = async (id: string, enabled: boolean) => {
-    const res = await fetch(`/api/calendars/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled }),
-    });
-    if (res.ok) {
-      setCalendars((prev) => prev.map((c) => (c.id === id ? { ...c, enabled } : c)));
+    setTogglingId(id);
+    try {
+      const res = await fetch(`/api/calendars/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      if (res.ok) {
+        setCalendars((prev) => prev.map((c) => (c.id === id ? { ...c, enabled } : c)));
+        clearErrors();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? "Failed to update calendar");
+      }
+    } catch {
+      setError("Failed to update calendar");
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -111,9 +174,12 @@ export default function SetupPage() {
   }
 
   const primaryDisplay = displays[0];
+  const googleConnected = Boolean(user?.hasGoogle || calendars.length > 0);
+  const showBlockingError = Boolean(error && calendars.length === 0);
+  const showReconnectHint = needsReconnect && !syncing;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 pb-12">
       <div>
         <h1 className="font-display text-3xl font-semibold">Setup</h1>
         <p className="mt-2 text-white/60">
@@ -121,7 +187,7 @@ export default function SetupPage() {
         </p>
       </div>
 
-      {error && (
+      {showBlockingError && (
         <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-200">
           {error}
         </div>
@@ -131,11 +197,11 @@ export default function SetupPage() {
       <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
         <h2 className="text-xl font-semibold">1. Google Calendar</h2>
         <p className="mt-1 text-white/50">
-          {user?.hasGoogle
+          {googleConnected
             ? "Your Google account is connected."
             : "Connect Google to import calendars."}
         </p>
-        {!user?.hasGoogle && (
+        {!googleConnected && (
           <Link
             href="/api/auth/google?returnTo=/setup"
             className="mt-4 inline-block rounded-xl bg-dashboard-accent px-6 py-3 font-medium"
@@ -143,7 +209,7 @@ export default function SetupPage() {
             Connect Google
           </Link>
         )}
-        {user?.hasGoogle && (
+        {googleConnected && (
           <div className="mt-4 flex flex-wrap gap-3">
             <button
               type="button"
@@ -161,13 +227,13 @@ export default function SetupPage() {
             </Link>
           </div>
         )}
-        {needsReconnect && (
+        {showReconnectHint && (
           <p className="mt-3 text-sm text-amber-200">
-            Calendar permissions need updating.{" "}
+            Calendar permissions may need updating.{" "}
             <Link href="/api/auth/google?reconnect=1&returnTo=/setup" className="underline">
               Reconnect Google
             </Link>{" "}
-            and approve calendar access.
+            to refresh access. Your calendars below are still available.
           </p>
         )}
       </section>
@@ -186,18 +252,21 @@ export default function SetupPage() {
                 <button
                   type="button"
                   onClick={() => toggleCalendar(cal.id, !cal.enabled)}
-                  className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
+                  disabled={togglingId === cal.id}
+                  className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors active:scale-[0.99] disabled:opacity-70 ${
                     cal.enabled
                       ? "border-white/20 bg-white/10"
-                      : "border-white/5 bg-white/[0.02] opacity-60"
+                      : "border-white/5 bg-white/[0.02] opacity-80"
                   }`}
                 >
                   <span
-                    className="h-4 w-4 rounded-full"
+                    className="h-4 w-4 shrink-0 rounded-full"
                     style={{ backgroundColor: cal.backgroundColor }}
                   />
                   <span className="flex-1 font-medium">{cal.name}</span>
-                  <span className="text-sm text-white/40">{cal.enabled ? "On" : "Off"}</span>
+                  <span className="text-sm text-white/40">
+                    {togglingId === cal.id ? "..." : cal.enabled ? "On" : "Off"}
+                  </span>
                 </button>
               </li>
             ))}
@@ -239,10 +308,15 @@ export default function SetupPage() {
         </section>
       )}
 
-      {calendars.length === 0 && user?.hasGoogle && (
+      {calendars.length === 0 && googleConnected && (
         <p className="text-white/50">
           No calendars found yet.{" "}
-          <button type="button" onClick={syncCalendars} className="text-dashboard-accent underline">
+          <button
+            type="button"
+            onClick={syncCalendars}
+            disabled={syncing}
+            className="text-dashboard-accent underline disabled:opacity-50"
+          >
             Sync from Google
           </button>
         </p>
