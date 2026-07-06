@@ -16,7 +16,7 @@ interface AgendaSectionProps {
   onEventClick: (eventId: string) => void;
 }
 
-function AgendaSection({ title, date, events, emptyMessage, onEventClick }: AgendaSectionProps) {
+function AgendaSection({ title, date, events, calendars, emptyMessage, onEventClick }: AgendaSectionProps & { calendars: import("@/types/calendar").CalendarSource[] }) {
   const dateLabel = date.toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",
@@ -37,7 +37,7 @@ function AgendaSection({ title, date, events, emptyMessage, onEventClick }: Agen
       ) : (
         <ul className="flex flex-col gap-2">
           {events.map((event) => {
-            const enriched = enrichEvent(event);
+            const enriched = enrichEvent(event, calendars);
             return (
               <li key={event.id}>
                 <button
@@ -78,11 +78,12 @@ function AgendaSection({ title, date, events, emptyMessage, onEventClick }: Agen
 
 interface DisplaySidePanelProps {
   events: FamilyEvent[];
+  calendars: import("@/types/calendar").CalendarSource[];
   onEventClick: (eventId: string) => void;
   onQuickAdd: (prefill?: AddEventPrefill) => void;
 }
 
-export function DisplaySidePanel({ events, onEventClick, onQuickAdd }: DisplaySidePanelProps) {
+export function DisplaySidePanel({ events, calendars, onEventClick, onQuickAdd }: DisplaySidePanelProps) {
   const today = new Date();
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -99,6 +100,7 @@ export function DisplaySidePanel({ events, onEventClick, onQuickAdd }: DisplaySi
           events={todayEvents}
           emptyMessage="Nothing scheduled today"
           onEventClick={onEventClick}
+          calendars={calendars}
         />
 
         <AgendaSection
@@ -107,6 +109,7 @@ export function DisplaySidePanel({ events, onEventClick, onQuickAdd }: DisplaySi
           events={tomorrowEvents}
           emptyMessage="Tomorrow is wide open"
           onEventClick={onEventClick}
+          calendars={calendars}
         />
 
         <section>

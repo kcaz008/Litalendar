@@ -1,9 +1,15 @@
-import { MOCK_CALENDARS } from "@/lib/mock/events";
+import type { CalendarSource } from "@/types/calendar";
 
-export function CalendarLegend() {
+interface CalendarLegendProps {
+  calendars: CalendarSource[];
+}
+
+export function CalendarLegend({ calendars }: CalendarLegendProps) {
+  if (calendars.length === 0) return null;
+
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-white/10 pt-4">
-      {MOCK_CALENDARS.map((cal) => (
+      {calendars.map((cal) => (
         <div key={cal.id} className="flex items-center gap-2">
           <span
             className="h-3 w-3 rounded-full"

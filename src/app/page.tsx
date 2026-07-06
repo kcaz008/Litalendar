@@ -10,14 +10,24 @@ export default function HomePage() {
         </p>
       </div>
 
-      <Link
-        href="/display/kitchen"
-        className="touch-btn-primary rounded-2xl px-10 py-4 text-xl"
-      >
-        Open Kitchen Display
-      </Link>
+      <div className="flex flex-col gap-4 sm:flex-row">
+        <Link
+          href="/setup"
+          className="touch-btn-primary rounded-2xl px-10 py-4 text-xl"
+        >
+          Connect Google Calendars
+        </Link>
+        <Link
+          href="/display/kitchen"
+          className="touch-btn-secondary rounded-2xl px-10 py-4 text-xl"
+        >
+          Demo (mock data)
+        </Link>
+      </div>
 
-      <p className="text-sm text-white/30">Phase 2 — Touch editing with mock data</p>
+      <p className="text-sm text-white/30">
+        Phases 3–4 — Setup, Google OAuth, and live calendar fetching
+      </p>
     </main>
   );
 }

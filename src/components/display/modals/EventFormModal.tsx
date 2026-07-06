@@ -12,7 +12,7 @@ import {
   toIso,
   type AddEventPrefill,
 } from "@/lib/events/utils";
-import { MOCK_CALENDARS } from "@/lib/mock/events";
+import type { CalendarSource } from "@/types/calendar";
 import { useEffect, useState } from "react";
 import { Modal } from "./Modal";
 
@@ -31,6 +31,7 @@ export interface EventFormData {
 interface EventFormModalProps {
   open: boolean;
   mode: "add" | "edit";
+  calendars: CalendarSource[];
   initialForm?: EventFormData;
   prefill?: AddEventPrefill;
   onSave: (form: EventFormData) => void;
@@ -40,20 +41,25 @@ interface EventFormModalProps {
 export function EventFormModal({
   open,
   mode,
+  calendars,
   initialForm,
   prefill,
   onSave,
   onCancel,
 }: EventFormModalProps) {
-  const [form, setForm] = useState<EventFormData>(() =>
-    initialForm ?? defaultAddForm(prefill)
-  );
+  const defaultCalendarId = calendars[0]?.id ?? "family";
+
+  const [form, setForm] = useState<EventFormData>(() => {
+    const base = initialForm ?? defaultAddForm(prefill);
+    return { ...base, calendarId: base.calendarId || defaultCalendarId };
+  });
 
   useEffect(() => {
     if (open) {
-      setForm(initialForm ?? defaultAddForm(prefill));
+      const base = initialForm ?? defaultAddForm(prefill);
+      setForm({ ...base, calendarId: base.calendarId || defaultCalendarId });
     }
-  }, [open, initialForm, prefill]);
+  }, [open, initialForm, prefill, defaultCalendarId]);
 
   const setDuration = (minutes: number) => {
     if (form.allDay) return;
@@ -131,7 +137,7 @@ export function EventFormModal({
         <section>
           <p className="form-label">Calendar</p>
           <div className="flex flex-wrap gap-3">
-            {MOCK_CALENDARS.map((cal) => (
+            {calendars.map((cal) => (
               <button
                 key={cal.id}
                 type="button"

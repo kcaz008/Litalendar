@@ -1,0 +1,88 @@
+// Prisma schema for Litalendar
+// Compatible with Neon, Supabase, or Vercel Postgres
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  image     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  googleConnection GoogleConnection?
+  displays         Display[]
+  appSettings      AppSettings?
+}
+
+model GoogleConnection {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken  String    @db.Text
+  refreshToken String?   @db.Text
+  expiresAt    DateTime?
+  scope        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  calendarSources CalendarSource[]
+}
+
+model CalendarSource {
+  id                 String           @id @default(cuid())
+  googleConnectionId String
+  googleConnection   GoogleConnection @relation(fields: [googleConnectionId], references: [id], onDelete: Cascade)
+  googleCalendarId   String
+  name               String
+  color              String           @default("#ffffff")
+  backgroundColor    String           @default("#5b8def")
+  borderColor        String           @default("#4a7de0")
+  enabled            Boolean          @default(true)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@unique([googleConnectionId, googleCalendarId])
+}
+
+model Display {
+  id             String   @id @default(cuid())
+  slug           String   @unique
+  name           String
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  privateKey     String
+  editingEnabled Boolean  @default(true)
+  deletePinHash  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  sessions DisplaySession[]
+}
+
+model DisplaySession {
+  id        String    @id @default(cuid())
+  displayId String
+  display   Display   @relation(fields: [displayId], references: [id], onDelete: Cascade)
+  token     String    @unique
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model AppSettings {
+  id              String @id @default(cuid())
+  userId          String @unique
+  user            User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calendarTitle   String @default("Family Calendar")
+  autoRefreshMins Int    @default(5)
+  reloadHours     Int    @default(6)
+  requirePinDelete Boolean @default(false)
+}
