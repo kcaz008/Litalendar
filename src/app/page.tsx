@@ -17,7 +17,7 @@ export default function HomePage() {
         Open Kitchen Display
       </Link>
 
-      <p className="text-sm text-white/30">Phase 1 — Display UI with mock data</p>
+      <p className="text-sm text-white/30">Phase 2 — Touch editing with mock data</p>
     </main>
   );
 }

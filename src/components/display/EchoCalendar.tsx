@@ -6,7 +6,8 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import listPlugin from "@fullcalendar/list";
 import interactionPlugin from "@fullcalendar/interaction";
-import type { CalendarApi } from "@fullcalendar/core";
+import type { CalendarApi, EventClickArg, EventDropArg } from "@fullcalendar/core";
+import type { EventResizeDoneArg } from "@fullcalendar/interaction";
 import type { CalendarViewType } from "@/components/display/DisplayTopBar";
 import { toFullCalendarEvents } from "@/lib/mock/events";
 import type { FamilyEvent } from "@/types/calendar";
@@ -16,6 +17,9 @@ interface EchoCalendarProps {
   currentView: CalendarViewType;
   onViewChange: (view: CalendarViewType) => void;
   calendarRef: React.MutableRefObject<CalendarApi | null>;
+  onEventClick: (info: EventClickArg) => void;
+  onEventDrop: (info: EventDropArg) => void;
+  onEventResize: (info: EventResizeDoneArg) => void;
 }
 
 export function EchoCalendar({
@@ -23,6 +27,9 @@ export function EchoCalendar({
   currentView,
   onViewChange,
   calendarRef,
+  onEventClick,
+  onEventDrop,
+  onEventResize,
 }: EchoCalendarProps) {
   const internalRef = useRef<FullCalendar>(null);
 
@@ -85,12 +92,15 @@ export function EchoCalendar({
         }}
         firstDay={1}
         weekends
-        editable={false}
-        selectable={false}
+        editable
+        eventStartEditable
+        eventDurationEditable
+        eventResizableFromStart
+        snapDuration="00:15:00"
         datesSet={handleDatesSet}
-        eventClick={() => {
-          /* Phase 2: open event modal */
-        }}
+        eventClick={onEventClick}
+        eventDrop={onEventDrop}
+        eventResize={onEventResize}
         longPressDelay={200}
         eventLongPressDelay={200}
         selectLongPressDelay={200}

@@ -1,5 +1,11 @@
 import type { CalendarSource, FamilyEvent } from "@/types/calendar";
 
+export {
+  formatTime,
+  formatTimeRange,
+  formatDateLong,
+} from "@/lib/events/utils";
+
 export const MOCK_CALENDARS: CalendarSource[] = [
   {
     id: "family",
@@ -301,14 +307,3 @@ export function getEventsForDay(events: FamilyEvent[], date: Date): FamilyEvent[
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 }
 
-export function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
-
-export function formatTimeRange(start: string, end: string): string {
-  return `${formatTime(start)} – ${formatTime(end)}`;
-}

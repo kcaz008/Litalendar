@@ -4,8 +4,8 @@ import {
   enrichEvent,
   formatTimeRange,
   getEventsForDay,
-  MOCK_EVENTS,
 } from "@/lib/mock/events";
+import { QUICK_ADD_PRESETS, type AddEventPrefill } from "@/lib/events/utils";
 import type { FamilyEvent } from "@/types/calendar";
 
 interface AgendaSectionProps {
@@ -13,9 +13,10 @@ interface AgendaSectionProps {
   date: Date;
   events: FamilyEvent[];
   emptyMessage: string;
+  onEventClick: (eventId: string) => void;
 }
 
-function AgendaSection({ title, date, events, emptyMessage }: AgendaSectionProps) {
+function AgendaSection({ title, date, events, emptyMessage, onEventClick }: AgendaSectionProps) {
   const dateLabel = date.toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",
@@ -41,6 +42,7 @@ function AgendaSection({ title, date, events, emptyMessage }: AgendaSectionProps
               <li key={event.id}>
                 <button
                   type="button"
+                  onClick={() => onEventClick(event.id)}
                   className="agenda-card w-full text-left"
                   aria-label={`${event.title}, ${formatTimeRange(event.start, event.end)}`}
                 >
@@ -74,22 +76,19 @@ function AgendaSection({ title, date, events, emptyMessage }: AgendaSectionProps
   );
 }
 
-const QUICK_ADD_PRESETS = [
-  { label: "School", emoji: "📚" },
-  { label: "Soccer", emoji: "⚽" },
-  { label: "Doctor", emoji: "🏥" },
-  { label: "Dinner", emoji: "🍽️" },
-  { label: "Pickup", emoji: "🚗" },
-  { label: "Reminder", emoji: "🔔" },
-];
+interface DisplaySidePanelProps {
+  events: FamilyEvent[];
+  onEventClick: (eventId: string) => void;
+  onQuickAdd: (prefill?: AddEventPrefill) => void;
+}
 
-export function DisplaySidePanel() {
+export function DisplaySidePanel({ events, onEventClick, onQuickAdd }: DisplaySidePanelProps) {
   const today = new Date();
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const todayEvents = getEventsForDay(MOCK_EVENTS, today);
-  const tomorrowEvents = getEventsForDay(MOCK_EVENTS, tomorrow);
+  const todayEvents = getEventsForDay(events, today);
+  const tomorrowEvents = getEventsForDay(events, tomorrow);
 
   return (
     <aside className="flex h-full w-[340px] shrink-0 flex-col gap-5 glass-panel p-5 xl:w-[380px]">
@@ -99,6 +98,7 @@ export function DisplaySidePanel() {
           date={today}
           events={todayEvents}
           emptyMessage="Nothing scheduled today"
+          onEventClick={onEventClick}
         />
 
         <AgendaSection
@@ -106,6 +106,7 @@ export function DisplaySidePanel() {
           date={tomorrow}
           events={tomorrowEvents}
           emptyMessage="Tomorrow is wide open"
+          onEventClick={onEventClick}
         />
 
         <section>
@@ -115,6 +116,7 @@ export function DisplaySidePanel() {
               <button
                 key={preset.label}
                 type="button"
+                onClick={() => onQuickAdd(preset.prefill)}
                 className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-left text-sm font-medium text-white/80 active:bg-white/10"
               >
                 <span className="text-lg" aria-hidden="true">

@@ -286,3 +286,57 @@ body {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 3px;
 }
+
+/* Modal form controls */
+.form-label {
+  @apply mb-3 block text-sm font-semibold uppercase tracking-wide text-white/50;
+}
+
+.form-input {
+  @apply w-full rounded-xl border border-white/15 bg-white/5 px-5 py-4 text-lg text-white outline-none transition-colors focus:border-dashboard-accent focus:ring-2 focus:ring-dashboard-accent/30;
+}
+
+.preset-chip {
+  @apply rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-base font-medium text-white/70 transition-colors active:bg-white/15;
+}
+
+.preset-chip-active {
+  @apply border-dashboard-accent/50 bg-dashboard-accent/20 text-white;
+}
+
+.calendar-chip {
+  @apply flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3.5 text-base font-medium text-white/70 transition-colors active:bg-white/10;
+}
+
+.calendar-chip-active {
+  @apply text-white;
+}
+
+.modal-scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+.modal-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+/* FullCalendar resize handles — larger for touch */
+.fc-echo-calendar .fc-event-resizer {
+  height: 12px;
+}
+
+.fc-echo-calendar .fc-event-resizer-start {
+  top: -4px;
+}
+
+.fc-echo-calendar .fc-event-resizer-end {
+  bottom: -4px;
+}
