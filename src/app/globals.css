@@ -79,6 +79,14 @@ body {
     @apply rounded-xl border border-white/10 bg-white/[0.04] p-4 transition-colors active:bg-white/[0.08];
   }
 
+  .next-up-card {
+    @apply rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-white/[0.04] p-5;
+  }
+
+  .weather-card {
+    @apply rounded-2xl border border-white/10 bg-gradient-to-br from-sky-500/10 to-white/[0.03] p-5;
+  }
+
   .status-dot {
     @apply h-3 w-3 rounded-full;
   }
@@ -294,6 +302,31 @@ body {
 .fc-echo-calendar .fc-day-today .fc-daygrid-day-number {
   color: #5b8def;
   font-weight: 600;
+}
+
+.fc-echo-calendar .fc-echo-today-cell {
+  background: rgba(91, 141, 239, 0.12) !important;
+  box-shadow: inset 0 0 0 1px rgba(91, 141, 239, 0.25);
+}
+
+.fc-echo-calendar .fc-day-today .fc-col-header-cell-cushion {
+  color: #93c5fd;
+  font-weight: 700;
+}
+
+.fc-echo-calendar .fc-timegrid-all-day {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.fc-echo-calendar .fc-timegrid-axis-cushion,
+.fc-echo-calendar .fc-timegrid-allday-cushion {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.fc-echo-calendar .fc-daygrid-day.fc-day-today {
+  background: rgba(91, 141, 239, 0.1);
 }
 
 .fc-echo-calendar .fc-list-day-cushion {

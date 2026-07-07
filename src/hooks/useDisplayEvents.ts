@@ -4,15 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CalendarSource, ConnectionStatus, FamilyEvent } from "@/types/calendar";
 import { MOCK_CALENDARS, MOCK_DISPLAY, createMockEvents } from "@/lib/mock/events";
 import { apiFetch } from "@/lib/api/client";
+import { cacheEventsLookStale } from "@/lib/display/agenda";
 import {
-  addZonedDays,
   DISPLAY_TIMEZONE,
   getDateKeyInTimezone,
-  startOfZonedDay,
 } from "@/lib/datetime/timezone";
 
 const CACHE_PREFIX = "litalendar-events-";
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 
 interface DisplayApiResponse {
   events: FamilyEvent[];
@@ -54,7 +53,18 @@ interface UseDisplayEventsResult {
   error?: string;
   isLive: boolean;
   isLoading: boolean;
+  usingCache: boolean;
+  isDemoMode: boolean;
   refresh: () => Promise<void>;
+}
+
+function clearCache(slug: string) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(`${CACHE_PREFIX}${slug}`);
+  } catch {
+    // ignore
+  }
 }
 
 function loadCache(slug: string): CachedDisplayPayload | null {
@@ -63,30 +73,38 @@ function loadCache(slug: string): CachedDisplayPayload | null {
     const raw = localStorage.getItem(`${CACHE_PREFIX}${slug}`);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as CachedDisplayPayload;
-    if (parsed.version !== CACHE_VERSION) return null;
 
-    const fetchedAt = new Date(parsed.fetchedAt);
-    if (Number.isNaN(fetchedAt.getTime())) return null;
-
-    const ageMs = Date.now() - fetchedAt.getTime();
-    if (ageMs > 24 * 60 * 60 * 1000) return null;
+    if (parsed.version !== CACHE_VERSION) {
+      clearCache(slug);
+      return null;
+    }
 
     const todayKey = getDateKeyInTimezone(new Date(), DISPLAY_TIMEZONE);
-    const rangeStart = startOfZonedDay(addZonedDays(new Date(), -30, DISPLAY_TIMEZONE));
-    const hasVeryStaleEvent = (parsed.events ?? []).some((event) => {
-      if (event.allDay) {
-        const startKey = event.start.slice(0, 10);
-        const cutoffKey = getDateKeyInTimezone(rangeStart, DISPLAY_TIMEZONE);
-        return startKey < cutoffKey;
-      }
-      return new Date(event.start).getTime() < rangeStart.getTime();
-    });
-    if (hasVeryStaleEvent && parsed.todayKey && parsed.todayKey !== todayKey) {
+    if (!parsed.todayKey || parsed.todayKey !== todayKey) {
+      clearCache(slug);
+      return null;
+    }
+
+    const fetchedAt = new Date(parsed.fetchedAt);
+    if (Number.isNaN(fetchedAt.getTime())) {
+      clearCache(slug);
+      return null;
+    }
+
+    const ageMs = Date.now() - fetchedAt.getTime();
+    if (ageMs > 24 * 60 * 60 * 1000) {
+      clearCache(slug);
+      return null;
+    }
+
+    if (cacheEventsLookStale(parsed.events ?? [], todayKey)) {
+      clearCache(slug);
       return null;
     }
 
     return parsed;
   } catch {
+    clearCache(slug);
     return null;
   }
 }
@@ -112,6 +130,7 @@ export function useDisplayEvents({
   displayKey,
 }: UseDisplayEventsOptions): UseDisplayEventsResult {
   const isLive = Boolean(displayKey);
+  const isDemoMode = !displayKey;
   const cached = isLive ? loadCache(displayId) : null;
 
   const [events, setEvents] = useState<FamilyEvent[]>(
@@ -139,6 +158,9 @@ export function useDisplayEvents({
   const [setupUrl, setSetupUrl] = useState<string | undefined>(cached?.setupUrl);
   const [error, setError] = useState<string | undefined>(cached?.error);
   const [isLoading, setIsLoading] = useState(isLive);
+  const [usingCache, setUsingCache] = useState(Boolean(cached && isLive));
+
+  const cacheSnapshotRef = useRef(cached);
 
   const fetchEvents = useCallback(async () => {
     if (!displayKey) return;
@@ -150,8 +172,16 @@ export function useDisplayEvents({
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setConnectionStatus("auth_error");
-        setError(err.error ?? "Failed to load events");
+        const snapshot = cacheSnapshotRef.current;
+        if (snapshot?.events?.length) {
+          setConnectionStatus("cached");
+          setUsingCache(true);
+          setError(err.error ?? "Using last updated events");
+        } else {
+          setConnectionStatus("auth_error");
+          setUsingCache(false);
+          setError(err.error ?? "Failed to load events");
+        }
         setIsLoading(false);
         return;
       }
@@ -168,18 +198,28 @@ export function useDisplayEvents({
       setReloadHours(data.settings?.reloadHours ?? 6);
       setSetupUrl(data.setupUrl);
       setError(data.error);
+      setUsingCache(false);
       saveCache(displayId, data);
+      cacheSnapshotRef.current = {
+        ...data,
+        version: CACHE_VERSION,
+        fetchedAt: new Date().toISOString(),
+      };
     } catch {
-      if (!cached) {
-        setConnectionStatus("offline");
-        setError("Could not reach server");
-      } else {
+      const snapshot = cacheSnapshotRef.current;
+      if (snapshot?.events?.length) {
         setConnectionStatus("cached");
+        setUsingCache(true);
+        setError("Using last updated events");
+      } else {
+        setConnectionStatus("offline");
+        setUsingCache(false);
+        setError("Could not reach server");
       }
     } finally {
       setIsLoading(false);
     }
-  }, [displayId, displayKey, cached]);
+  }, [displayId, displayKey]);
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
@@ -226,6 +266,8 @@ export function useDisplayEvents({
     error,
     isLive,
     isLoading,
+    usingCache,
+    isDemoMode,
     refresh,
   };
 }

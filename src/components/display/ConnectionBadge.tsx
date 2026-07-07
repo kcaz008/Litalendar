@@ -16,7 +16,7 @@ const STATUS_CONFIG: Record<
     textClass: "text-emerald-300",
   },
   cached: {
-    label: "Cached",
+    label: "Cached events",
     dotClass: "status-dot-cached",
     textClass: "text-amber-300",
   },

@@ -5,6 +5,7 @@ import type { CalendarApi, EventClickArg, EventDropArg } from "@fullcalendar/cor
 import type { EventResizeDoneArg } from "@fullcalendar/interaction";
 import { DisplayTopBar, type CalendarViewType } from "@/components/display/DisplayTopBar";
 import { DisplaySidePanel } from "@/components/display/DisplaySidePanel";
+import { DisplayStatusBanner } from "@/components/display/DisplayStatusBanner";
 import { EchoCalendar } from "@/components/display/EchoCalendar";
 import { CalendarLegend } from "@/components/display/CalendarLegend";
 import { SetupRequired } from "@/components/display/SetupRequired";
@@ -43,6 +44,7 @@ interface ConflictState {
 export function DisplayDashboard({ displayId, displayKey }: DisplayDashboardProps) {
   const calendarRef = useRef<CalendarApi | null>(null);
   const [currentView, setCurrentView] = useState<CalendarViewType>("timeGridWeek");
+  const [anchorKey, setAnchorKey] = useState(0);
 
   const displayData = useDisplayEvents({ displayId, displayKey });
 
@@ -68,7 +70,7 @@ export function DisplayDashboard({ displayId, displayKey }: DisplayDashboardProp
   useEffect(() => {
     if (displayData.isLive && !displayData.isLoading) {
       replaceEvents(displayData.events);
-      calendarRef.current?.today();
+      setAnchorKey((k) => k + 1);
     }
   }, [displayData.events, displayData.isLive, displayData.isLoading, replaceEvents]);
 
@@ -240,7 +242,13 @@ export function DisplayDashboard({ displayId, displayKey }: DisplayDashboardProp
   );
 
   const handleToday = useCallback(() => {
+    setAnchorKey((k) => k + 1);
     calendarRef.current?.today();
+  }, []);
+
+  const handleViewChange = useCallback((view: CalendarViewType) => {
+    setCurrentView(view);
+    setAnchorKey((k) => k + 1);
   }, []);
 
   const handleRefresh = useCallback(async () => {
@@ -251,19 +259,27 @@ export function DisplayDashboard({ displayId, displayKey }: DisplayDashboardProp
     displayData.isLive &&
     !displayData.isLoading &&
     displayData.connectionStatus === "auth_error" &&
-    events.length === 0
+    events.length === 0 &&
+    !displayData.usingCache
   ) {
     return (
       <SetupRequired
         displayId={displayId}
         error={displayData.error}
         setupUrl={displayData.setupUrl}
+        mode="auth_error"
       />
     );
   }
 
   if (displayData.isLive && !displayKey) {
-    return <SetupRequired displayId={displayId} error="Missing display key" />;
+    return (
+      <SetupRequired
+        displayId={displayId}
+        error="Missing display key"
+        mode="missing_key"
+      />
+    );
   }
 
   return (
@@ -272,12 +288,25 @@ export function DisplayDashboard({ displayId, displayKey }: DisplayDashboardProp
         title={displayData.title}
         connectionStatus={displayData.connectionStatus}
         lastUpdated={displayData.lastUpdated}
+        usingCache={displayData.usingCache}
         currentView={currentView}
-        onViewChange={setCurrentView}
+        onViewChange={handleViewChange}
         onToday={handleToday}
         onRefresh={handleRefresh}
         onAddEvent={() => openAddEvent()}
       />
+
+      <div className="px-6">
+        <DisplayStatusBanner
+          isDemoMode={displayData.isDemoMode}
+          usingCache={displayData.usingCache}
+          connectionStatus={displayData.connectionStatus}
+          error={displayData.error}
+          calendarsCount={calendars.length}
+          eventsCount={events.length}
+          lastUpdated={displayData.lastUpdated}
+        />
+      </div>
 
       <main className="flex min-h-0 flex-1 gap-5 px-6 pb-6">
         <div className="glass-panel-elevated flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4">
@@ -286,8 +315,9 @@ export function DisplayDashboard({ displayId, displayKey }: DisplayDashboardProp
               events={events}
               calendars={calendars}
               currentView={currentView}
-              onViewChange={setCurrentView}
+              onViewChange={handleViewChange}
               calendarRef={calendarRef}
+              anchorKey={anchorKey}
               onEventClick={handleEventClick}
               onEventDrop={handleEventDrop}
               onEventResize={handleEventResize}
@@ -299,6 +329,7 @@ export function DisplayDashboard({ displayId, displayKey }: DisplayDashboardProp
         <DisplaySidePanel
           events={events}
           calendars={calendars}
+          isDemoMode={displayData.isDemoMode}
           onEventClick={openEventDetails}
           onQuickAdd={openAddEvent}
         />

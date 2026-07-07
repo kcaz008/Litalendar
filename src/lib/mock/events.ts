@@ -7,6 +7,7 @@ import {
   startOfZonedDay,
   zonedDateTimeToUtc,
 } from "@/lib/datetime/timezone";
+import { getCalendarInitials } from "@/lib/display/agenda";
 
 export {
   formatTime,
@@ -337,6 +338,7 @@ export function toFullCalendarEvents(events: FamilyEvent[], calendars: CalendarS
       extendedProps: {
         calendarId: event.calendarId,
         calendarName: cal?.name ?? "Unknown",
+        calendarInitials: getCalendarInitials(cal?.name ?? "?"),
         location: event.location,
         notes: event.notes,
       },
