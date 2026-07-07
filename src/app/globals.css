@@ -87,6 +87,14 @@ body {
     @apply rounded-2xl border border-white/10 bg-gradient-to-br from-sky-500/10 to-white/[0.03] p-5;
   }
 
+  .calendar-nav-btn {
+    @apply inline-flex min-h-[52px] min-w-[52px] items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.06] px-5 text-base font-semibold text-white/90 active:bg-white/10;
+  }
+
+  .calendar-nav-today {
+    @apply border-dashboard-accent/40 bg-dashboard-accent/15 text-white;
+  }
+
   .status-dot {
     @apply h-3 w-3 rounded-full;
   }
@@ -327,6 +335,21 @@ body {
 
 .fc-echo-calendar .fc-daygrid-day.fc-day-today {
   background: rgba(91, 141, 239, 0.1);
+}
+
+.fc-echo-dayGridMonth .fc-daygrid-day-number {
+  font-size: 1.15rem;
+  padding: 10px 12px;
+}
+
+.fc-echo-dayGridMonth .fc-daygrid-event {
+  font-size: 0.9rem;
+  padding: 2px 4px;
+}
+
+.fc-echo-dayGridMonth .fc-col-header-cell-cushion {
+  font-size: 1rem;
+  padding: 10px 4px;
 }
 
 .fc-echo-calendar .fc-list-day-cushion {

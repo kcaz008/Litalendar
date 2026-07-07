@@ -6,7 +6,7 @@ import type { EventResizeDoneArg } from "@fullcalendar/interaction";
 import { DisplayTopBar, type CalendarViewType } from "@/components/display/DisplayTopBar";
 import { DisplaySidePanel } from "@/components/display/DisplaySidePanel";
 import { DisplayStatusBanner } from "@/components/display/DisplayStatusBanner";
-import { EchoCalendar } from "@/components/display/EchoCalendar";
+import { EchoCalendar, type CalendarRangeInfo } from "@/components/display/EchoCalendar";
 import { CalendarLegend } from "@/components/display/CalendarLegend";
 import { SetupRequired } from "@/components/display/SetupRequired";
 import { UndoToast } from "@/components/display/UndoToast";
@@ -44,7 +44,10 @@ interface ConflictState {
 export function DisplayDashboard({ displayId, displayKey }: DisplayDashboardProps) {
   const calendarRef = useRef<CalendarApi | null>(null);
   const [currentView, setCurrentView] = useState<CalendarViewType>("timeGridWeek");
-  const [anchorKey, setAnchorKey] = useState(0);
+  const [goTodaySignal, setGoTodaySignal] = useState(0);
+  const [navigateSignal, setNavigateSignal] = useState(0);
+  const [navigateDirection, setNavigateDirection] = useState<"prev" | "next">("next");
+  const [rangeTitle, setRangeTitle] = useState<string>();
 
   const displayData = useDisplayEvents({ displayId, displayKey });
 
@@ -70,7 +73,6 @@ export function DisplayDashboard({ displayId, displayKey }: DisplayDashboardProp
   useEffect(() => {
     if (displayData.isLive && !displayData.isLoading) {
       replaceEvents(displayData.events);
-      setAnchorKey((k) => k + 1);
     }
   }, [displayData.events, displayData.isLive, displayData.isLoading, replaceEvents]);
 
@@ -103,15 +105,6 @@ export function DisplayDashboard({ displayId, displayKey }: DisplayDashboardProp
   const openEventDetails = useCallback((eventId: string) => {
     setDetailsEventId(eventId);
   }, []);
-
-  const openAddEvent = useCallback((prefill?: AddEventPrefill) => {
-    if (!displayData.editingEnabled && displayData.isLive) return;
-    setFormMode("add");
-    setEditEventId(null);
-    setAddPrefill(prefill);
-    setDetailsEventId(null);
-    setFormOpen(true);
-  }, [displayData.editingEnabled, displayData.isLive]);
 
   const openEditEvent = useCallback((eventId: string) => {
     if (!displayData.editingEnabled && displayData.isLive) return;
@@ -242,13 +235,26 @@ export function DisplayDashboard({ displayId, displayKey }: DisplayDashboardProp
   );
 
   const handleToday = useCallback(() => {
-    setAnchorKey((k) => k + 1);
+    setGoTodaySignal((n) => n + 1);
     calendarRef.current?.today();
   }, []);
 
   const handleViewChange = useCallback((view: CalendarViewType) => {
     setCurrentView(view);
-    setAnchorKey((k) => k + 1);
+  }, []);
+
+  const handlePrev = useCallback(() => {
+    setNavigateDirection("prev");
+    setNavigateSignal((n) => n + 1);
+  }, []);
+
+  const handleNext = useCallback(() => {
+    setNavigateDirection("next");
+    setNavigateSignal((n) => n + 1);
+  }, []);
+
+  const handleRangeChange = useCallback((info: CalendarRangeInfo) => {
+    setRangeTitle(info.title);
   }, []);
 
   const handleRefresh = useCallback(async () => {
@@ -290,13 +296,15 @@ export function DisplayDashboard({ displayId, displayKey }: DisplayDashboardProp
         lastUpdated={displayData.lastUpdated}
         usingCache={displayData.usingCache}
         currentView={currentView}
+        rangeTitle={rangeTitle}
         onViewChange={handleViewChange}
+        onPrev={handlePrev}
         onToday={handleToday}
+        onNext={handleNext}
         onRefresh={handleRefresh}
-        onAddEvent={() => openAddEvent()}
       />
 
-      <div className="px-6">
+      <div className="px-4">
         <DisplayStatusBanner
           isDemoMode={displayData.isDemoMode}
           usingCache={displayData.usingCache}
@@ -308,16 +316,19 @@ export function DisplayDashboard({ displayId, displayKey }: DisplayDashboardProp
         />
       </div>
 
-      <main className="flex min-h-0 flex-1 gap-5 px-6 pb-6">
-        <div className="glass-panel-elevated flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4">
+      <main className="flex min-h-0 flex-1 gap-3 px-4 pb-4">
+        <div className="glass-panel-elevated flex min-h-0 min-w-0 flex-[1_1_88%] flex-col overflow-hidden p-3">
           <div className="min-h-0 flex-1">
             <EchoCalendar
               events={events}
               calendars={calendars}
               currentView={currentView}
               onViewChange={handleViewChange}
+              onRangeChange={handleRangeChange}
               calendarRef={calendarRef}
-              anchorKey={anchorKey}
+              goTodaySignal={goTodaySignal}
+              navigateSignal={navigateSignal}
+              navigateDirection={navigateDirection}
               onEventClick={handleEventClick}
               onEventDrop={handleEventDrop}
               onEventResize={handleEventResize}
@@ -326,13 +337,7 @@ export function DisplayDashboard({ displayId, displayKey }: DisplayDashboardProp
           <CalendarLegend calendars={calendars} />
         </div>
 
-        <DisplaySidePanel
-          events={events}
-          calendars={calendars}
-          isDemoMode={displayData.isDemoMode}
-          onEventClick={openEventDetails}
-          onQuickAdd={openAddEvent}
-        />
+        <DisplaySidePanel events={events} onEventClick={openEventDetails} />
       </main>
 
       <EventDetailsModal
