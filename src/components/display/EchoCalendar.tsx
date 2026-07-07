@@ -10,23 +10,35 @@ import type { CalendarApi, EventClickArg, EventContentArg, EventDropArg } from "
 import type { EventResizeDoneArg } from "@fullcalendar/interaction";
 import type { CalendarViewType } from "@/components/display/DisplayTopBar";
 import { toFullCalendarEvents } from "@/lib/mock/events";
-import { DISPLAY_TIMEZONE, getDateKeyInTimezone } from "@/lib/datetime/timezone";
+import {
+  dateKeyToZonedStart,
+  DISPLAY_TIMEZONE,
+  getDateKeyInTimezone,
+} from "@/lib/datetime/timezone";
 import type { FamilyEvent } from "@/types/calendar";
+
+export interface CalendarRangeInfo {
+  title: string;
+  viewType: CalendarViewType;
+}
 
 interface EchoCalendarProps {
   events: FamilyEvent[];
   calendars: import("@/types/calendar").CalendarSource[];
   currentView: CalendarViewType;
   onViewChange: (view: CalendarViewType) => void;
+  onRangeChange?: (info: CalendarRangeInfo) => void;
   calendarRef: React.MutableRefObject<CalendarApi | null>;
-  anchorKey: number;
+  goTodaySignal: number;
+  navigateSignal: number;
+  navigateDirection: "prev" | "next";
   onEventClick: (info: EventClickArg) => void;
   onEventDrop: (info: EventDropArg) => void;
   onEventResize: (info: EventResizeDoneArg) => void;
 }
 
-function getTodayAnchor(): string {
-  return getDateKeyInTimezone(new Date(), DISPLAY_TIMEZONE);
+function getTodayDate(): Date {
+  return dateKeyToZonedStart(getDateKeyInTimezone(new Date(), DISPLAY_TIMEZONE));
 }
 
 export function EchoCalendar({
@@ -34,42 +46,65 @@ export function EchoCalendar({
   calendars,
   currentView,
   onViewChange,
+  onRangeChange,
   calendarRef,
-  anchorKey,
+  goTodaySignal,
+  navigateSignal,
+  navigateDirection,
   onEventClick,
   onEventDrop,
   onEventResize,
 }: EchoCalendarProps) {
   const internalRef = useRef<FullCalendar>(null);
-
-  const navigateToToday = useCallback((view?: CalendarViewType) => {
-    const api = internalRef.current?.getApi();
-    if (!api) return;
-    const today = getTodayAnchor();
-    const targetView = view ?? (api.view.type as CalendarViewType);
-    if (api.view.type !== targetView) {
-      api.changeView(targetView, today);
-    } else {
-      api.gotoDate(today);
-    }
-  }, []);
+  const initialDateRef = useRef(getTodayDate());
+  const didInitRef = useRef(false);
+  const lastViewRef = useRef(currentView);
 
   useEffect(() => {
     const api = internalRef.current?.getApi();
-    if (api) {
-      calendarRef.current = api;
-      navigateToToday(currentView);
+    if (!api) return;
+    calendarRef.current = api;
+
+    if (!didInitRef.current) {
+      didInitRef.current = true;
+      api.gotoDate(initialDateRef.current);
     }
-  }, [calendarRef, anchorKey, currentView, navigateToToday]);
+  }, [calendarRef]);
+
+  useEffect(() => {
+    const api = internalRef.current?.getApi();
+    if (!api || lastViewRef.current === currentView) return;
+
+    const anchorDate =
+      currentView === "listWeek" ? getTodayDate() : (api.getDate() ?? getTodayDate());
+    lastViewRef.current = currentView;
+    api.changeView(currentView, anchorDate);
+  }, [currentView]);
+
+  useEffect(() => {
+    if (goTodaySignal === 0) return;
+    const api = internalRef.current?.getApi();
+    api?.today();
+  }, [goTodaySignal]);
+
+  useEffect(() => {
+    if (navigateSignal === 0) return;
+    const api = internalRef.current?.getApi();
+    if (!api) return;
+    if (navigateDirection === "prev") api.prev();
+    else api.next();
+  }, [navigateSignal, navigateDirection]);
 
   const handleDatesSet = useCallback(
-    (info: { view: { type: string } }) => {
+    (info: { view: { type: string; title: string } }) => {
       const viewType = info.view.type as CalendarViewType;
+      lastViewRef.current = viewType;
       if (viewType !== currentView) {
         onViewChange(viewType);
       }
+      onRangeChange?.({ title: info.view.title, viewType });
     },
-    [currentView, onViewChange]
+    [currentView, onViewChange, onRangeChange]
   );
 
   const renderEventContent = useCallback((arg: EventContentArg) => {
@@ -99,7 +134,7 @@ export function EchoCalendar({
         ref={internalRef}
         plugins={[timeGridPlugin, dayGridPlugin, listPlugin, interactionPlugin]}
         initialView={currentView}
-        initialDate={getTodayAnchor()}
+        initialDate={initialDateRef.current}
         timeZone={DISPLAY_TIMEZONE}
         headerToolbar={false}
         events={toFullCalendarEvents(events, calendars)}

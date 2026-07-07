@@ -11,7 +11,7 @@ import {
 } from "@/lib/datetime/timezone";
 
 const CACHE_PREFIX = "litalendar-events-";
-const CACHE_VERSION = 3;
+const CACHE_VERSION = 4;
 
 interface DisplayApiResponse {
   events: FamilyEvent[];
